@@ -4,9 +4,10 @@
 contribution data to the QML layer. It now fetches the authenticated viewer's
 calendar through the installed GitHub CLI, validates and aggregates the
 response, and writes the stable JSON contract below. Cache storage, stale
-fallback, deterministic validation, the bounded live smoke, and asynchronous
-QML controller consumption are implemented. Binding the widget's presentation
-and controls to that controller remains a later stage.
+fallback, deterministic validation, the bounded live smoke, asynchronous QML
+controller consumption, and the live widget/popup presentation are implemented
+through increment 3. Installer/uninstaller behavior, final installed-helper
+discovery, and live Omarchy enablement remain increment 4 work.
 
 The helper invokes exactly one read-only `gh api graphql` request when the first
 attempt succeeds. It relies on `gh`'s existing authentication, never accepts or
@@ -23,6 +24,33 @@ location. The `effectiveTimezone` field reports the selected IANA location, or
 The normal three-attempt ceiling can be lowered with `-max-attempts`; it cannot
 be raised. `-fixture` emits the fixed fictional validation envelope without a
 subprocess, network request, or cache access.
+
+## QML runtime consumption
+
+`DataController.qml` resolves the repository/runtime helper as
+`../bin/commitpulse-data` relative to its own QML directory. It supplies that
+absolute path to one asynchronous Quickshell `Process` command array; it never
+uses a shell or silently searches `PATH`. `npm run build:helper` produces the
+matching ignored repository build. Isolated smokes can select a deterministic
+executable with `COMMITPULSE_TEST_HELPER`; that override is test-only. Increment
+4 will establish and validate the final installed location alongside the plugin.
+
+One deferred fetch runs at controller startup. A repeating 900000 ms (15-minute)
+timer and the popup's manual Refresh action use that same controller. A
+synchronous guard rejects overlapping startup, timer, and manual triggers, and
+a validated future `retryAt` disables manual/timer work until the deadline. The
+bar and popup share the controller and never launch independent helpers.
+
+The UI keeps four explicitly labelled Today, Week, Month, and Year rows whenever
+a complete successful snapshot exists. It shows loading before the first result,
+refreshing while retaining existing totals, fresh/up-to-date, stale, explicit
+authentication, rate-limit, offline/general error, and unavailable states. A
+valid stale envelope replaces the displayed snapshot as a complete unit;
+unavailable, malformed, incomplete, or oversized output preserves the previous
+complete snapshot and can never introduce zero rows. Fresh and stale snapshots
+show a human-readable `lastUpdated` value. The profile action accepts only the
+fixed `https://github.com/` HTTPS target, because schema version 1 intentionally
+does not expose viewer identity or an account-specific URL.
 
 ## JSON envelope
 
@@ -173,8 +201,13 @@ fictional, uses no usernames or credentials, and is only a deterministic unit
 test input. It contains no fetched account data or real-account timestamps.
 
 `npm run validate` checks Go formatting and vetting, all Go tests, supported Go
-race tests, a disposable helper build, the embedded fixture-mode contract, the
-existing Node tests, and the isolated QML smoke workflow. `npm run smoke:live`
+race tests, a disposable helper build, the embedded fixture-mode contract, Node
+unit/integration tests, QML formatting/parsing, and isolated headless and Wayland
+runtime smokes. Those smokes stage the compiled helper beside copied plugin
+sources under private temporary HOME/XDG trees, use only fictional scenario
+output, assert startup/manual refresh and overlap prevention, and delete all
+captured output. The Wayland runtime portion reports a documented skip when
+Quickshell or an active Wayland socket is unavailable. `npm run smoke:live`
 performs the opt-in live path with one request attempt and disposable cache
 state; it suppresses captured helper/API content and reports only PASS, SKIP, or
 FAIL. Missing authentication or unavailable network/API access is an explicit

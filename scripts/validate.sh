@@ -44,10 +44,11 @@ if [[ -e "$validation_root/cache" ]]; then
 fi
 node scripts/validate-helper-output.mjs --fixture "$validation_root/fixture.json"
 
+bash -n test/scenario-helper.sh scripts/controller-smoke.sh scripts/qml-smoke.sh scripts/live-smoke.sh scripts/validate.sh
 npm run smoke:controller
 npm run smoke
 
-tracked_runtime="$(git ls-files -- '.commitpulse/**' 'bin/**' 'dist/**' '**/commitpulse-data' '**/success-v1.json' '**/retry-v1.json' '**/cache.lock' '**/.commitpulse-*.tmp' '*.log')"
+tracked_runtime="$(git ls-files -- '.env' '.env.*' '.commitpulse/**' 'bin/**' 'dist/**' '**/commitpulse-data' '**/success-v1.json' '**/retry-v1.json' '**/cache.lock' '**/.commitpulse-*.tmp' '**/invocation-count' '**/active-count' '**/maximum-active' '*.log')"
 if [[ -n "$tracked_runtime" ]]; then
   printf 'Tracked runtime or generated artifacts found:\n%s\n' "$tracked_runtime" >&2
   exit 1

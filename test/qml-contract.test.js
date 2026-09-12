@@ -34,6 +34,8 @@ test("one asynchronous controller is owned by the widget and injected into the p
   assert.match(controller, /Component\.onCompleted:\s*startupTimer\.start\(\)/)
   assert.equal((controller.match(/onTriggered:\s*root\.refresh\(\)/g) || []).length, 2)
   assert.match(controller, /var arguments = \[root\.helperExecutable\]/)
+  assert.match(controller, /Quickshell\.env\("COMMITPULSE_TEST_HELPER"\)/)
+  assert.match(controller, /Qt\.resolvedUrl\("\.\.\/bin\/commitpulse-data"\)/)
   assert.doesNotMatch(controller, /\[\s*["'](?:ba)?sh["']/)
 
   const guard = controller.indexOf("if (root.running || !ContributionState.retryAllowed")

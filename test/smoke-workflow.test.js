@@ -13,7 +13,12 @@ test("demo root instantiates the widget and opens its popup", () => {
   assert.match(demo, /CommitPulse\.BarWidget\s*\{/)
   assert.match(demo, /bar:\s*demoBar/)
   assert.match(demo, /widget\.open\(\)/)
-  assert.match(demo, /COMMITPULSE_SMOKE_READY: BarWidget and fixture popup loaded/)
+  assert.match(demo, /COMMITPULSE_SMOKE_READY: fresh stale auth malformed manual maximum active 1/)
+  assert.match(demo, /panel\.statusTitle !== "Stale · Authentication required"/)
+  assert.match(demo, /panel\.statusTitle !== "Loading contributions…"/)
+  assert.match(demo, /panel\.statusTitle !== "Refreshing contributions…"/)
+  assert.match(demo, /panel\.refreshContributions\(\)/)
+  assert.match(demo, /panel\.dataController\.maximumActiveProcesses !== 1/)
   assert.match(demo, /Qt\.quit\(\)/)
 })
 
@@ -27,12 +32,16 @@ test("smoke workflow isolates XDG state and has a documented static fallback", (
     "XDG_CONFIG_HOME=$smoke_root/config",
     "XDG_CACHE_HOME=$smoke_root/cache",
     "XDG_STATE_HOME=$smoke_root/state",
+    "XDG_RUNTIME_DIR=$runtime_dir",
     "/usr/share/omarchy/shell/Commons",
     "/usr/share/omarchy/shell/Ui",
     "WAYLAND_DISPLAY",
     "runtime skipped",
     "timeout --foreground --kill-after=2s 15s",
-    "COMMITPULSE_SMOKE_READY",
+    "COMMITPULSE_SCENARIO_STATE=$scenario_state",
+    "staged_plugin",
+    "runtime_bin/commitpulse-data",
+    "COMMITPULSE_SMOKE_READY: fresh stale auth malformed manual maximum active 1",
   ]) {
     assert.equal(smoke.includes(required), true, `missing smoke workflow contract: ${required}`)
   }
@@ -62,6 +71,7 @@ test("aggregate validation covers the helper and preserves existing QML smoke ch
     "PATH=/nonexistent XDG_CACHE_HOME=\"$validation_root/cache\"",
     "commitpulse-data\" -fixture",
     "validate-helper-output.mjs --fixture",
+    "bash -n test/scenario-helper.sh",
     "npm run smoke:controller",
     "npm run smoke",
     "git diff --check",
@@ -83,15 +93,30 @@ test("controller smoke runs the compiled helper fixture with isolated state", ()
     "XDG_CONFIG_HOME=$smoke_root/config",
     "XDG_CACHE_HOME=$smoke_root/cache",
     "XDG_STATE_HOME=$smoke_root/state",
-    "COMMITPULSE_TEST_HELPER=$smoke_root/commitpulse-data",
-    "COMMITPULSE_TEST_FIXTURE=1",
-    "maximum active 1",
+    "XDG_RUNTIME_DIR=$smoke_root/runtime",
+    "COMMITPULSE_TEST_HELPER=$smoke_root/scenario-helper",
+    "COMMITPULSE_SCENARIO_STATE=$scenario_state",
+    "staged_plugin",
+    "stage_root/bin/commitpulse-data",
+    "fresh stale auth malformed manual startup maximum active 1",
   ]) {
     assert.equal(smoke.includes(required), true, `missing controller-smoke safeguard: ${required}`)
   }
   assert.equal(packageFile.scripts["smoke:controller"], "./scripts/controller-smoke.sh")
   assert.doesNotMatch(smoke, /\.config\/omarchy\/shell\.json/)
   assert.doesNotMatch(smoke, /plugins\/dev\.commitpulse/)
+})
+
+test("scenario helper contains only fictional bounded integration states", () => {
+  const driver = read("test/scenario-helper.sh")
+
+  for (const state of ['"state":"fresh"', '"state":"stale"', '"state":"unavailable"', '"kind":"authentication"', "fictional malformed output"]) {
+    assert.equal(driver.includes(state), true, `missing scenario-helper state: ${state}`)
+  }
+  for (const guard of ["COMMITPULSE_SCENARIO_STATE", "flock", "maximum-active", "invocation-count"]) {
+    assert.equal(driver.includes(guard), true, `missing scenario-helper guard: ${guard}`)
+  }
+  assert.doesNotMatch(driver, /\bgh\b|api\.github|login|profileUrl|\.config\/omarchy/)
 })
 
 test("live smoke bounds requests and suppresses authenticated output", () => {

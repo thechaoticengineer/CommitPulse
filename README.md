@@ -6,8 +6,8 @@ See [PRODUCT.md](PRODUCT.md) for the accepted requirements and delivery order.
 
 ## Status
 
-Increments 1 and 2, plus the controller and live-UI stages of increment 3, are
-implemented. The repository contains a schema-version 1 Omarchy bar-widget
+Increments 1, 2, and 3 are implemented. The repository contains a
+schema-version 1 Omarchy bar-widget
 manifest, a deterministic fictional model, and a themed Quickshell widget with
 an anchored detail popup. Its long-lived widget owns one shared asynchronous
 data controller and injects it into the popup; neither surface starts a second
@@ -20,10 +20,17 @@ validation. It emits exactly Today, Week, Month, and Year in that order. A
 failed fetch either preserves the last successful totals as `stale` or emits
 `unavailable` without totals; failures never masquerade as four zeroes.
 
-The controller launches that helper directly through Quickshell's asynchronous
-`Process` API, performs strict schema-v1 validation, retains the last complete
-four-period snapshot through unavailable or invalid results, refreshes every
-15 minutes, and provides one guarded manual refresh method. The compact bar
+The controller discovers the repository build at `bin/commitpulse-data`
+relative to the QML plugin, then launches it directly through Quickshell's
+asynchronous `Process` API without a shell or `PATH` fallback. An explicit
+`COMMITPULSE_TEST_HELPER` override exists only for isolated integration tests.
+This repository-relative production location is provisional until increment 4
+defines and validates the installed layout. The controller performs strict
+schema-v1 validation, retains the last complete four-period snapshot through
+unavailable or invalid results, refreshes every 15 minutes after its startup
+refresh, and provides one guarded manual refresh method. Startup, timer, and
+manual requests are coalesced so only one helper process can run, and manual
+refresh also honors a validated `retryAt`. The compact bar
 shows the live Today count when one is available and uses explicit loading or
 unavailable text otherwise. The popup shows all four live totals, a
 human-readable last-updated indication, and distinct loading, refreshing,
@@ -31,13 +38,15 @@ stale, authentication, rate-limit, offline, general-error, and unavailable
 presentations. Its Refresh action is disabled while a request is active or a
 validated `retryAt` deadline is in the future.
 
-The profile action validates and opens only the fixed `https://github.com/`
-target through Qt's native URL launcher. GitHub therefore resolves the action
+The last-updated text reports the timestamp of the most recent successful fresh
+or stale snapshot. The profile action validates and opens only the fixed
+`https://github.com/` target through Qt's native URL launcher. GitHub therefore resolves the action
 for the browser's authenticated account without CommitPulse querying, logging,
 or persisting account identity. The schema-v1 privacy boundary intentionally
 contains no login or profile URL, so this increment cannot construct a direct
-account-specific URL. Installer/uninstaller work and changes to the live
-Omarchy setup remain later work. Nothing in the current validation flow
+account-specific URL. Installer/uninstaller work, final installed-helper
+discovery, and changes to the live Omarchy setup remain increment 4 work.
+Nothing in the current validation flow
 installs or enables the plugin, reads live plugin configuration, or edits
 `/usr/share/omarchy`.
 
@@ -61,16 +70,24 @@ npm run validate
 
 That one command checks `gofmt`, `go vet`, all Go tests, Go race tests on
 supported Linux targets, a reproducible temporary helper build, deterministic
-fixture-mode JSON against the schema-v1 contract, the existing Node tests, and
-two isolated QML smoke workflows. The headless controller smoke always runs the
-compiled helper's deterministic `-fixture` path twice and asserts that no more
-than one process is active; the visual smoke reports an honest runtime skip when
-no Wayland socket is available. Validation also rejects tracked cache/runtime
-artifacts and runs `git diff --check`.
+fixture-mode JSON against the schema-v1 contract, Node unit/integration tests,
+QML formatting/parsing, and two isolated QML smoke workflows. The headless
+controller smoke stages the compiled Go helper beside the QML plugin, then uses
+an explicit executable test override to drive fictional fresh, stale,
+unavailable/authentication, and malformed-output attempts. It exercises startup
+and manual paths, retained non-zero totals, non-zero exits, and a maximum of one
+active process. The visual smoke stages the same complete tree and checks the
+actual bar and popup presentations against those scenarios when Quickshell and
+an active Wayland socket are available; otherwise it reports an honest runtime
+skip after static checks. Both QML smokes use private temporary `HOME` and XDG
+trees, remove captured output, and never examine the real plugin directory.
+Validation also rejects tracked credentials, cache/runtime artifacts, binaries,
+and logs, checks fixture scripts with `bash -n`, and runs `git diff --check`.
 
-`npm run build:helper` writes the reproducible helper binary to ignored
-`bin/commitpulse-data`. `npm run smoke:controller` runs the headless asynchronous
-controller check, `npm run smoke` runs the fixture-backed isolated visual check,
+`npm run build:helper` writes the helper binary to ignored
+`bin/commitpulse-data`, matching the controller's repository/runtime discovery
+path. `npm run smoke:controller` runs the headless asynchronous scenario check,
+`npm run smoke` runs the fixture-backed isolated visual check,
 and `npm run demo` leaves that isolated preview open until closed. None of these
 commands installs the plugin or touches live Omarchy configuration.
 
@@ -145,10 +162,9 @@ See your GitHub contribution counts at a glance while working in Omarchy.
 
 ## Planned later increments
 
-- Extend isolated live-UI scenario coverage and integration documentation to
-  complete increment 3 validation.
-- Add an idempotent installer/uninstaller, then validate the installed plugin
-  in the user's live Omarchy shell.
+- Increment 4 will add an idempotent installer/uninstaller, establish the final
+  installed helper location, enable the plugin without replacing unrelated
+  configuration, and validate it in the user's live Omarchy shell.
 
 ## Related project
 

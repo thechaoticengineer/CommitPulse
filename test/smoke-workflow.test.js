@@ -48,3 +48,47 @@ test("read-only reviews have a tracked, state-free agent mount point", () => {
   assert.match(ignore, /\.agents\/\*/)
   assert.match(ignore, /!\.agents\/\.gitkeep/)
 })
+
+test("aggregate validation covers the helper and preserves existing QML smoke checks", () => {
+  const validation = read("scripts/validate.sh")
+  const packageFile = JSON.parse(read("package.json"))
+
+  for (const required of [
+    "gofmt -l cmd internal",
+    "go vet ./...",
+    "go test ./...",
+    "go test -race ./...",
+    "go build -trimpath",
+    "PATH=/nonexistent XDG_CACHE_HOME=\"$validation_root/cache\"",
+    "commitpulse-data\" -fixture",
+    "validate-helper-output.mjs --fixture",
+    "npm run smoke",
+    "git diff --check",
+  ]) {
+    assert.equal(validation.includes(required), true, `missing aggregate validation step: ${required}`)
+  }
+  assert.equal(packageFile.scripts.validate, "./scripts/validate.sh")
+  assert.match(packageFile.scripts["build:helper"], /bin\/commitpulse-data/)
+})
+
+test("live smoke bounds requests and suppresses authenticated output", () => {
+  const liveSmoke = read("scripts/live-smoke.sh")
+  const packageFile = JSON.parse(read("package.json"))
+
+  for (const required of [
+    "gh auth status --active",
+    "mktemp -d",
+    "XDG_CACHE_HOME=\"$smoke_root/cache\"",
+    "-max-attempts 1",
+    "> \"$smoke_root/output.json\"",
+    "validate-helper-output.mjs\" --live",
+    "CommitPulse live smoke: PASS",
+    "CommitPulse live smoke: SKIP",
+    "CommitPulse live smoke: FAIL",
+  ]) {
+    assert.equal(liveSmoke.includes(required), true, `missing live-smoke safeguard: ${required}`)
+  }
+  assert.doesNotMatch(liveSmoke, /cat\s+/)
+  assert.doesNotMatch(liveSmoke, /--show-token/)
+  assert.equal(packageFile.scripts["smoke:live"], "./scripts/live-smoke.sh")
+})

@@ -6,64 +6,118 @@ See [PRODUCT.md](PRODUCT.md) for the accepted requirements and delivery order.
 
 ## Status
 
-Increment 1 is implemented: the repository contains a schemaVersion 1
-Omarchy bar-widget manifest, a Qt-free deterministic fixture model, and a
-compact themed Quickshell widget with an anchored detail popup under
-`quickshell/`. The fictional fixture exposes Today, Week, Month, and Year
-contribution totals in that order; the popup shows all four totals and the bar
-shows today's concise summary. Fixture values are fictional, deterministic,
-and contain no personal contribution data.
+Increments 1 and 2 are implemented. The repository contains a schema-version 1
+Omarchy bar-widget manifest, a deterministic fictional model, and a themed
+Quickshell widget with an anchored detail popup. The UI still displays only the
+fictional fixture.
 
-Run `npm run smoke` to validate the manifest and fixture model, parse the QML,
-and run a bounded repository-local Quickshell demo. It uses a temporary HOME
-and XDG config/cache/state/data tree, stages only the repository QML, and links
-its imports directly to the installed read-only Omarchy shell APIs. It neither
-installs nor enables the plugin, and it never reads or changes your live
-`~/.config/omarchy` configuration or plugin directory. On an active Wayland
-session, the command confirms that the demo root, `BarWidget.qml`, and its
-fixture popup load before Quickshell exits cleanly. A Wayland socket is required
-for that runtime portion; without one, the command reports the runtime check as
-skipped and completes only its deterministic static checks. Use `npm run demo`
-for the same isolated preview without the bounded exit, then close it or press
-Ctrl-C when finished.
+The compiled Go helper under `cmd/commitpulse-data` implements aggregation,
+authenticated GitHub GraphQL fetching through `gh`, secure XDG caching, stale
+fallback, structured errors, retry suppression, and deterministic contract
+validation. It emits exactly Today, Week, Month, and Year in that order. A
+failed fetch either preserves the last successful totals as `stale` or emits
+`unavailable` without totals; failures never masquerade as four zeroes.
 
-Increment 2, stages 1–3 are implemented: `cmd/commitpulse-data` and its
-standard-library Go module define schema version 1 of the data-helper JSON
-contract, fetch the authenticated viewer's contribution calendar through one
-minimal read-only `gh api graphql` query, and strictly aggregate GitHub calendar
-day labels into Today, Week, Month, and Year totals. The helper uses `gh`'s
-existing authentication and never accepts or prints a token. It defaults to the
-host-local timezone or accepts an explicit IANA timezone, uses Monday-based
-weeks, handles year-crossing weeks, leap days, and DST-aware inclusive query
-bounds, and rejects incomplete or malformed responses rather than inventing
-zero totals.
+Asynchronous QML consumption of the helper, the 15-minute and manual refresh
+paths, the profile action, installer/uninstaller, and changes to the live
+Omarchy setup remain later increments. Nothing in the current validation flow
+installs or enables the plugin, reads live plugin configuration, or edits
+`/usr/share/omarchy`.
 
-The helper serializes invocations with a bounded Linux advisory lock and stores
-its last validated success under `$XDG_CACHE_HOME/commitpulse`, falling back to
-the standard user-cache directory when `XDG_CACHE_HOME` is unset. Cache files
-are bounded, versioned, private, symlink-safe, and atomically replaced. When a
-fetch fails, a valid prior success is emitted unchanged as `stale` with the
-current sanitized error and its original `lastUpdated`; without one, the helper
-emits `unavailable` with no totals. Rate-limit metadata is stored separately and
-prevents later helper processes from contacting GitHub before `retryAt`.
+## Dependencies
 
-Install and authenticate the GitHub CLI, then run `go run
-./cmd/commitpulse-data` (optionally with `-timezone Europe/Warsaw`). A failure
-produces `stale` totals when a valid cache exists; otherwise it produces a
-structured `unavailable` envelope with a stable, sanitized error and no totals.
-Requests have strict process deadlines, output caps, and a maximum of three
-attempts; only transient network, timeout, and service failures back off.
-Rate-limit responses carry a bounded `retryAt` without an immediate retry loop,
-and that suppression survives later invocations. Private/internal contribution
-inclusion requires the optional `read:user` scope and GitHub's
-private-contribution visibility setting; the output reports only whether
-restricted contributions were observed, never the login. See [the helper
-contract](docs/data-helper-contract.md) and run `go test ./...` for deterministic
-tests that do not require a network or real authentication.
+- Linux/Omarchy for the helper's bounded advisory cache lock.
+- Go 1.27 or newer and Node.js 18 or newer for build and validation.
+- GitHub CLI (`gh`) authenticated as the desired viewer for live data. The
+  helper delegates authentication to `gh`; it never accepts, obtains, prints,
+  or persists a token.
+- Qt 6 `qmlformat` for static QML checks. Quickshell and an active Wayland socket
+  are optional for the isolated runtime portion of the QML smoke test.
 
-Live QML refresh and installation remain planned work. No credentials, fetched
-contribution data, cache contents, or other runtime state is included in this
-repository.
+## Build and validation
+
+Run the complete local validation workflow with:
+
+```sh
+npm run validate
+```
+
+That one command checks `gofmt`, `go vet`, all Go tests, Go race tests on
+supported Linux targets, a reproducible temporary helper build, deterministic
+fixture-mode JSON against the schema-v1 contract, the existing Node tests, and
+the isolated QML smoke workflow. It also rejects tracked cache/runtime artifacts
+and runs `git diff --check`. The Quickshell runtime portion reports an honest
+skip when no Wayland socket is available; its static checks still run.
+
+`npm run build:helper` writes the reproducible helper binary to ignored
+`bin/commitpulse-data`. `npm run smoke` runs the fixture-backed isolated QML
+check, while `npm run demo` leaves that isolated preview open until closed.
+Neither command installs the plugin or touches live Omarchy configuration.
+
+`npm run smoke:live` is the opt-in, read-only authenticated smoke test. It
+preflights `gh`, builds into a temporary directory, uses a disposable
+`XDG_CACHE_HOME`, permits exactly one GraphQL attempt, validates only output
+schema/state/invariants, and deletes all captured data. Its only visible result
+is PASS, SKIP, or FAIL; authentication, rate-limit, API, or network
+unavailability is a SKIP. It never prints the viewer login, contribution
+values, raw API response, cache contents, or subprocess diagnostics.
+
+## Helper usage and JSON contract
+
+Run `go run ./cmd/commitpulse-data`, optionally with `-timezone
+Europe/Warsaw`. `-max-attempts 1` lowers the normal request budget for bounded
+callers such as the live smoke; it cannot raise the hard limit of three.
+`-fixture` emits a fixed fictional fresh envelope without invoking `gh` or
+touching the cache. A normal failed invocation still writes its valid `stale` or
+`unavailable` JSON envelope, then exits non-zero.
+
+The versioned stdout object contains `schemaVersion`, `state`,
+`effectiveTimezone`, ordered `periods` when data exists, `attemptedAt`,
+`lastUpdated`, optional `retryAt`, restricted-contribution `visibility`, and an
+optional sanitized `error`. Error kinds cover missing `gh`, authentication,
+offline, timeout, rate limit, API/GraphQL failure, malformed response, invalid
+timezone, and internal failure. See the complete [data-helper
+contract](docs/data-helper-contract.md).
+
+The cache lives at `$XDG_CACHE_HOME/commitpulse`, or the platform user-cache
+directory plus `commitpulse` when `XDG_CACHE_HOME` is unset. Its directory is
+mode `0700`; the bounded success, retry, and lock files are mode `0600`.
+Successful records are atomically replaced and never followed through
+symlinks. A two-second bounded lock prevents overlapping authenticated fetches.
+Rate-limit retry state is separate from successful totals, so later processes
+honor `retryAt` even before the first success.
+
+Each `gh api graphql` process has a 15-second deadline and bounded output. A
+normal invocation makes at most three attempts, waiting 250 ms and then 500 ms
+only after recognized transient network, timeout, or service failures.
+Authentication, malformed responses, GraphQL errors, and rate limits are not
+retried within the invocation. Rate limits persist a retry time capped to one
+hour, with a one-minute fallback when GitHub supplies no usable reset time.
+
+## Calendar and GitHub API semantics
+
+GitHub's `ContributionCalendarDay.date` values are authoritative date-only
+calendar labels. CommitPulse does not convert those labels through UTC.
+Today, Month, and Year use the effective host-local timezone or the explicitly
+selected IANA timezone. Week starts Monday and may include days from the
+preceding year. Leap days and 23/25-hour daylight-saving days are covered by
+constructing boundaries at local midnight.
+
+The GraphQL `from` value is the earliest needed local boundary and `to` is the
+end of the effective local day. Both are timezone-aware instants. GitHub defines
+`from` as inclusive and `to` as inclusive; CommitPulse keeps the interval below
+one year while allowing every date label in a leap year.
+
+These are GitHub contributions, not commits alone: the collection includes
+issues, commits, and pull requests. Private/internal contributions require the
+optional `read:user` scope and remain subject to the authenticated user's
+private-contribution visibility setting. The helper exposes only whether
+restricted contributions were observed, not the viewer identity.
+
+Official references: [GitHub GraphQL user and contribution
+schema](https://docs.github.com/en/graphql/reference/users#object-contributioncalendarday),
+[`gh api` GraphQL usage](https://cli.github.com/manual/gh_api), and [GitHub
+GraphQL rate-limit guidance](https://docs.github.com/en/graphql/overview/rate-limits-and-query-limits-for-the-graphql-api).
 
 ## Goal
 
@@ -71,16 +125,10 @@ See your GitHub contribution counts at a glance while working in Omarchy.
 
 ## Planned later increments
 
-- Connect the QML widget to the helper with asynchronous refresh controls.
-- Provide a profile action and idempotent installer and uninstaller.
-
-## Decisions for implementation
-
-- Refine placement within the installed Omarchy Quickshell bar.
-- Preserve the agreed GitHub contributions metric and explain its API semantics.
-- Align timezone behavior with API dates; weeks start on Monday.
-- Choose authentication, refresh frequency, and local caching.
-- Define how private contribution counts should be represented.
+- Connect QML to the helper asynchronously with a 15-minute default refresh,
+  manual refresh, visible freshness/error state, and overlap prevention.
+- Add the profile action and idempotent installer/uninstaller, then validate the
+  installed plugin in the user's live Omarchy shell.
 
 ## Related project
 

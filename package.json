@@ -4,8 +4,11 @@
   "private": true,
   "description": "Fixture model checks for the CommitPulse Omarchy plugin.",
   "scripts": {
+    "build:helper": "mkdir -p bin && go build -trimpath -o bin/commitpulse-data ./cmd/commitpulse-data",
+    "validate": "./scripts/validate.sh",
     "test": "node --test test/*.test.js",
     "smoke": "./scripts/qml-smoke.sh",
+    "smoke:live": "./scripts/live-smoke.sh",
     "demo": "./scripts/qml-smoke.sh --interactive"
   },
   "engines": {

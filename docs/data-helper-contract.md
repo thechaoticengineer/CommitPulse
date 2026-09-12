@@ -4,8 +4,8 @@
 contribution data to the QML layer. It now fetches the authenticated viewer's
 calendar through the installed GitHub CLI, validates and aggregates the
 response, and writes the stable JSON contract below. Cache storage and stale
-fallback are implemented; refresh scheduling and QML live-data wiring are later
-stages.
+fallback, deterministic validation, and the bounded live smoke are implemented;
+refresh scheduling and QML live-data wiring are later increments.
 
 The helper invokes exactly one read-only `gh api graphql` request when the first
 attempt succeeds. It relies on `gh`'s existing authentication, never accepts or
@@ -19,6 +19,9 @@ manual](https://cli.github.com/manual/gh_api).
 The command accepts `-timezone IANA`; an empty value uses the host-local Go
 location. The `effectiveTimezone` field reports the selected IANA location, or
 `Local` when Go only has the host-local zone rather than a portable IANA name.
+The normal three-attempt ceiling can be lowered with `-max-attempts`; it cannot
+be raised. `-fixture` emits the fixed fictional validation envelope without a
+subprocess, network request, or cache access.
 
 ## JSON envelope
 
@@ -167,3 +170,11 @@ helper diagnostics.
 `internal/contributions/testdata/fictional-calendar-2096.json` is explicitly
 fictional, uses no usernames or credentials, and is only a deterministic unit
 test input. It contains no fetched account data or real-account timestamps.
+
+`npm run validate` checks Go formatting and vetting, all Go tests, supported Go
+race tests, a disposable helper build, the embedded fixture-mode contract, the
+existing Node tests, and the isolated QML smoke workflow. `npm run smoke:live`
+performs the opt-in live path with one request attempt and disposable cache
+state; it suppresses captured helper/API content and reports only PASS, SKIP, or
+FAIL. Missing authentication or unavailable network/API access is an explicit
+SKIP, while invalid output is a failure.

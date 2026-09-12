@@ -1,148 +1,150 @@
-# CommitPulse — panel statystyk contributions
+# CommitPulse — contribution statistics panel
 
-Status: **zadanie 0 — naprawa otwierania panelu — zaakceptowane ręcznie przez
-użytkownika i zamknięte na jego polecenie**. Zadania redesignu 1–5 pozostają zapisane na później, bez zgody
-na uruchomienie. Użytkownik osobno naprawia ReviewBox; nie zakłócać tej pracy.
+Status: **task 0 — repair panel opening — was manually accepted by the user and
+closed at their request**. Redesign tasks 1–5 remain deferred and are not authorized
+to run. The user is working on ReviewBox separately; do not interfere with it.
 
-## Kierunek
+## Direction
 
-Wzorcem jest pokazany przez użytkownika panel zużycia Codexa w Omarchy: ciemne tło,
-monospace, wyraźny nagłówek, oddzielone sekcje, wyrównane liczby i poziome słupki.
-Przenosimy sposób prezentacji na GitHub contributions. Technologia pozostaje
-**Quickshell/QML + Go**, a wszystkie role w Forge mają używać wyłącznie Codexa.
+The visual reference is the Omarchy Codex usage panel provided by the user: a dark
+background, monospace typography, a clear header, separated sections, aligned
+numbers, and horizontal bars. Adapt this presentation to GitHub contributions.
+Keep **Quickshell/QML + Go**, and use only Codex for every Forge role.
 
-Proponowany układ: nagłówek CommitPulse → podsumowanie Dziś / Tydzień / Miesiąc /
-Rok → aktywność z ostatnich 7 dni → aktywność miesięczna bieżącego roku → dyskretny
-czas aktualizacji i akcje. Licznik w pasku pozostaje wejściem do pełnego panelu;
-tooltip służy jedynie krótkiej podpowiedzi.
+Proposed layout: CommitPulse header → Today / Week / Month / Year summary → activity
+for the last 7 days → monthly activity for the current year → a discreet update
+time and actions. The bar counter remains the entry point to the full panel;
+the tooltip provides only a brief hint.
 
-## 0. Naprawa otwierania istniejącego panelu
+## 0. Repair opening of the existing panel
 
-Użytkownik potwierdził działanie zainstalowanego panelu i polecił opublikować oraz
-zamknąć poprawkę. Automatyczne review pozostało zablokowane: compositorowy test
-regresji nie przechodził stabilnie, a ostatnią próbę przerwała niedostępność usługi
-Codexa. Akceptacja użytkownika nie oznacza zaliczenia tych kontroli. Szczegóły
-i zachowane ograniczenia: [raport naprawy](docs/panel-opening-repair.md).
+The user confirmed that the installed panel works and requested publication and
+closure. Automated review remained blocked: the compositor regression test was
+unreliable, and the final attempt was interrupted by a Codex service outage.
+User acceptance does not mean these checks passed. See the
+[repair report](docs/panel-opening-repair.md) for evidence and remaining limitations.
 
-Użytkownik potwierdził, że kliknięcie licznika nie otwierało żadnego panelu — widoczny
-był jedynie tooltip. Problem był niezależny od oczekiwanego redesignu. Przyczyną
-była utrata obserwowanego katalogu pluginu podczas aktualizacji i zatruty adres
-komponentu w długo działającym procesie powłoki; naprawa zachowuje inode katalogu,
-przełącza manifest jako ostatni plik i używa nowych adresów komponentów.
+The original report was that clicking the counter opened no panel, with only the
+tooltip visible. This was independent of the requested redesign. The cause was
+loss of the watched plugin directory during updates and a poisoned component URL
+in the long-running shell process. The fix preserves the directory inode,
+switches the manifest last, and uses new component URLs.
 
-- [x] Odtworzyć kliknięcie na faktycznie zainstalowanym widgetcie w sesji Omarchy.
-  Porównać zainstalowane pliki z wersją w repozytorium, zanim zmieni się kod.
-- [x] Prześledzić obsługę kliknięcia w BarWidget.qml, togglePanel(), panelLoader,
-  inicjalizację Panel.qml, kontroler widoczności i kotwiczenie. Sprawdzić właściwy
-  kontrakt panelu/IPC w zainstalowanej wersji Omarchy.
-- [x] Sprawdzić błędy Quickshell/QML w chwili kliknięcia: nieudane ładowanie,
-  brakujące właściwości/importy, niewidoczne okno lub nieprawidłową pozycję.
-  Czytać ograniczone fragmenty logów; nie zakładać przyczyny bez dowodów.
-- [x] Naprawić potwierdzoną przyczynę i dodać celowany test regresji. Sam test
-  helpera Go, poprawność manifestu lub tooltip nie potwierdzają otwierania panelu.
-- [x] Zweryfikować rzeczywiste otwarcie i zamknięcie panelu z paska oraz ponowne
-  otwarcie, w tym bez danych GitHub. Zapisać przyczynę i dowody naprawy.
+- [x] Reproduce clicking the actual installed widget in Omarchy. Compare installed
+  files with the repository before changing code.
+- [x] Trace click handling in BarWidget.qml, togglePanel(), panelLoader, Panel.qml
+  initialization, visibility control, and anchoring. Check the panel/IPC contract
+  in the installed Omarchy version.
+- [x] Inspect Quickshell/QML errors at click time: loading failures, missing
+  properties/imports, invisible windows, or incorrect placement. Read bounded
+  log excerpts and establish the cause from evidence.
+- [x] Fix the confirmed cause and add a targeted regression test. A Go helper test,
+  valid manifest, or visible tooltip alone does not verify panel opening.
+- [x] Verify actual opening, closing, and reopening from the bar, including without
+  GitHub data. Record the cause and repair evidence.
 
-**Warunek ukończenia:** kliknięcie widgetu rzeczywiście pokazuje panel w Omarchy;
-działają zamknięcie i ponowne otwarcie. Użytkownik zezwolił teraz na naprawę i niezbędną
-aktualizację zainstalowanego pluginu CommitPulse. Nie restartować silnika Forge,
-nie resetować konfiguracji Omarchy i nie uruchamiać przy tym redesignu.
+**Acceptance:** clicking the widget displays the panel in Omarchy; closing and
+reopening work. The user authorized the fix and necessary update of the installed
+CommitPulse plugin. Do not restart Forge, reset Omarchy configuration, or start
+the redesign as part of this task.
 
-## 1. Układ i wygląd panelu na danych demonstracyjnych
+## 1. Panel layout and styling with demo data
 
-Zależność: zadanie 0 — najpierw działające otwieranie panelu.
+Dependency: task 0 — panel opening must work first.
 
-- [ ] Obejrzeć implementację istniejącego panelu zużycia Codexa w zainstalowanym
-  Omarchy jako wzorzec odstępów, szerokości, typografii i separatorów.
-- [ ] Przygotować w QML pełny panel z nagłówkiem, czterema licznikami, sekcjami
-  wykresów i stopką. Korzystać z motywu Omarchy, nie zakodowanej palety.
-- [ ] Dopasować szerokość do wzorca (około 360–400 logicznych pikseli), z limitem
-  wynikającym z dostępnego ekranu i przewijaniem przy małej wysokości.
-- [ ] Użyć fikcyjnych danych wyłącznie w trybie demo. Przygotować podgląd/screenshot
-  tego trybu do oceny wyglądu, bez zmieniania zainstalowanego widgetu.
+- [ ] Inspect the existing Codex usage panel implementation in installed Omarchy
+  as the reference for spacing, width, typography, and separators.
+- [ ] Build the complete QML panel with a header, four counters, chart sections,
+  and footer. Use the Omarchy theme instead of a hard-coded palette.
+- [ ] Match the reference width (approximately 360–400 logical pixels), constrained
+  by the available screen, with scrolling when height is limited.
+- [ ] Use fictional data only in demo mode. Prepare a preview/screenshot for visual
+  assessment without changing the installed widget.
 
-**Warunek ukończenia:** podgląd przypomina panel statystyk z referencji; wartości,
-etykiety i sekcje są czytelne, a panel mieści się również na mniejszym ekranie.
-Nie oznaczać danych demonstracyjnych jako rzeczywistych.
+**Acceptance:** the preview resembles the reference statistics panel; values,
+labels, and sections are readable, including on a smaller screen. Never present
+demo data as real activity.
 
-## 2. Dane dzienne i miesięczne w pomocniku Go
+## 2. Daily and monthly series in the Go helper
 
-Zależność: układ z zadania 1 określa potrzebny zakres danych.
+Dependency: the layout from task 1 defines the required data ranges.
 
-- [ ] Rozszerzyć istniejące obliczenia kalendarza o ostatnie 7 dni, włącznie
-  z dzisiaj, oraz miesiące bieżącego roku do aktualnego miesiąca.
-- [ ] Wykorzystać pobierany kalendarz GitHub; uwzględnić poprzedni rok, jeśli
-  zakres siedmiu dni przekracza 1 stycznia. Unikać osobnego pobierania dla sekcji.
-- [ ] Określić kontrakt dat, wartości i kompletności danych. Brak danych nie jest
-  zerem; bieżący dzień i miesiąc są okresami jeszcze niezakończonymi.
-- [ ] Zaplanować zgodną zmianę kontraktu helper → QML oraz cache. Obecny
-  ContributionState.js odrzuca dodatkowe pola i wersje inne niż schemaVersion=1;
-  sam dodatek po stronie Go zepsułby aktualny widget. Przy zmianie wersji zapewnić
-  obsługę poprzedniej lub kontrolowane przejście bez utraty ostatnich sum.
-- [ ] Sprawdzić granice roku/miesiąca, rok przestępny, dni zerowe, brakujące dane,
-  kolejność próbek i zgodność miesięcznych agregatów z licznikiem roku.
+- [ ] Extend calendar calculations with the last 7 days, including today, and the
+  current year's months through the current month.
+- [ ] Reuse the fetched GitHub calendar; include the preceding year when the
+  seven-day range crosses January 1. Avoid separate requests per section.
+- [ ] Define the date, value, and completeness contract. Missing data is not zero;
+  the current day and month are periods still in progress.
+- [ ] Plan a compatible helper → QML and cache contract change. The current
+  ContributionState.js rejects additional fields and versions other than
+  schemaVersion=1; adding fields only in Go would break the existing widget.
+  Support the previous version or provide a controlled transition that retains
+  the last successful totals.
+- [ ] Check year/month boundaries, leap years, zero-activity days, missing data,
+  sample ordering, and consistency between monthly aggregates and the year total.
 
-**Warunek ukończenia:** helper dostarcza deterministyczne serie wraz z czterema
-dotychczasowymi sumami; istniejący działający interfejs zachowuje zgodność.
+**Acceptance:** the helper provides deterministic series alongside the four
+existing totals, preserving compatibility with the working interface.
 
-## 3. Wykresy na rzeczywistych danych
+## 3. Charts using real data
 
-Zależności: zadania 1 i 2.
+Dependencies: tasks 1 and 2.
 
-- [ ] Podłączyć nowy panel do istniejącego wspólnego DataController; otwarcie
-  panelu nie może tworzyć drugiego helpera ani dodatkowego cyklu odświeżania.
-- [ ] Pokazać ostatnie 7 dni jako wiersze: dzień/data, poziomy słupek, liczba.
-  Wyróżnić dzisiejszy dzień podobnie jak „Today” na referencji.
-- [ ] Pokazać miesiące bieżącego roku w analogicznej sekcji i zaznaczyć, że
-  aktualny miesiąc jeszcze trwa. Nie przedstawiać przyszłych miesięcy jako zer.
-- [ ] Skalować słupki do największej wartości we własnej sekcji. Zachować dokładne
-  liczby, sensowną prezentację samych zer i wyjaśnienie skali. Nie tworzyć fikcyjnych
-  limitów, procentów realizacji ani celu aktywności.
-- [ ] Zachować odświeżanie co 15 minut, ręczny refresh i ochronę przed nakładającymi
-  się zapytaniami. Dane prywatne nie mogą trafiać do publicznych fixture ani logów.
+- [ ] Connect the panel to the existing shared DataController. Opening the panel
+  must not create a second helper or an additional refresh cycle.
+- [ ] Show the last 7 days as rows containing a day/date, horizontal bar, and count.
+  Highlight today similarly to the reference's “Today” row.
+- [ ] Show the current year's months in a matching section and indicate that the
+  current month is still in progress. Do not display future months as zeroes.
+- [ ] Scale bars relative to the largest value within their section. Keep exact
+  counts, handle all-zero data, and explain the scale. Do not invent quotas,
+  completion percentages, or activity targets.
+- [ ] Preserve automatic refresh every 15 minutes, manual refresh, and overlapping
+  request prevention. Keep private data out of public fixtures and logs.
 
-**Warunek ukończenia:** cztery sumy i oba wykresy przedstawiają tę samą rzeczywistą
-próbkę danych; demo nadal działa bez GitHuba i bez zapisu danych użytkownika.
+**Acceptance:** the four totals and both charts represent the same real data
+snapshot. Demo mode still works without GitHub or storing user data.
 
-## 4. Obsługa panelu i stany błędów
+## 4. Panel interaction and error states
 
-Zależność: zadanie 3.
+Dependency: task 3.
 
-- [ ] Sprawdzić otwieranie kliknięciem licznika, zamykanie Escape/kliknięciem poza
-  panelem, kotwiczenie przy pasku oraz brak otwierania panelu poza ekranem.
-- [ ] Zachować klawiaturowy dostęp do akcji, widoczny fokus i przewijanie treści.
-- [ ] Ujednolicić loading, refresh, stale, offline, brak logowania i rate limit.
-  Zachowywać ostatnie poprawne sumy oraz serie; pokazać krótki stan i czas danych.
-- [ ] Przy starym cache bez serii pokazać dostępne liczniki i uczciwy brak wykresu.
-  Nie zastępować błędu demonstracyjnymi słupkami ani zerami.
-- [ ] Sprawdzić duże liczby, same zera, dłuższe etykiety i skalowanie interfejsu.
+- [ ] Check opening by clicking the counter, closing with Escape/outside click,
+  bar anchoring, and preventing off-screen placement.
+- [ ] Preserve keyboard access to actions, visible focus, and content scrolling.
+- [ ] Unify loading, refreshing, stale, offline, authentication, and rate-limit
+  states. Retain the last successful totals and series; show a short status and
+  data timestamp.
+- [ ] For older caches without series, show available counters and an explicit
+  unavailable chart state. Do not replace errors with demo bars or zeroes.
+- [ ] Check large numbers, all-zero data, longer labels, and display scaling.
 
-**Warunek ukończenia:** podstawowy flow działa myszą i klawiaturą; panel pozostaje
-czytelny przy błędach, a refresh przestrzega retryAt i blokady równoległych żądań.
+**Acceptance:** the basic workflow works with mouse and keyboard, the panel stays
+readable during errors, and refresh respects retryAt and concurrent-request limits.
 
-## 5. Weryfikacja i przygotowanie aktualizacji
+## 5. Verification and update preparation
 
-Zależności: zadania 1–4.
+Dependencies: tasks 1–4.
 
-- [ ] Uruchomić wymagane testy Go, kontraktu, QML i kontrolera, w tym zgodność
-  nowych serii, starego cache oraz stanów błędów.
-- [ ] Sprawdzić pełny panel na fikcyjnych danych w normalnym i małym rozmiarze;
-  przygotować końcowy screenshot demonstracyjny do porównania z referencją.
-- [ ] Sprawdzić instalację/aktualizację/usunięcie w izolowanej konfiguracji,
-  z zachowaniem istniejących zabezpieczeń i backupów.
-- [ ] Uaktualnić README: wygląd, zakresy dat, skala słupków, niepełny bieżący okres,
-  odświeżanie i polecenie aktualizacji już zainstalowanej wersji.
-- [ ] Przygotować wynik do review i późniejszej instalacji. Instalację w działającym
-  Omarchy oraz publikację wykonywać dopiero zgodnie z instrukcją użytkownika
-  przy ponownym uruchomieniu prac; obecnie niczego nie uruchamiać.
+- [ ] Run required Go, contract, QML, and controller checks, including new series,
+  older cache compatibility, and error states.
+- [ ] Check the complete panel with fictional data at normal and constrained
+  sizes; prepare a final demo screenshot for comparison with the reference.
+- [ ] Check installation, upgrade, and removal in an isolated configuration,
+  retaining existing safeguards and backups.
+- [ ] Update README with appearance, date ranges, bar scaling, incomplete current
+  periods, refreshing, and the command to update an installed version.
+- [ ] Prepare the result for review and later installation. Install into live
+  Omarchy and publish only according to the user's instructions when work resumes;
+  do not start these tasks now.
 
-**Warunek ukończenia:** sprawdzony pakiet aktualizacji i podgląd są gotowe do oceny,
-a dokumentacja opisuje faktycznie działający panel.
+**Acceptance:** a verified update package and preview are ready for review, and
+the documentation describes the implemented panel accurately.
 
-## Przekazanie do Forge później
+## Later handoff to Forge
 
-Po decyzji użytkownika dodać sześć zadań w powyższej kolejności, zaczynając od
-diagnozy otwierania panelu (zadanie 0). Przed startem po
-ewentualnym restarcie sprawdzić stan projektu i ustawienia wszystkich ról Codexa;
-ustawienia procesowe Forge mogą wymagać ponownego ustawienia. Nie przywracać
-wyłączonego watchera ani automatycznych napraw na podstawie samej tej listy.
+After the user's authorization, add the remaining tasks 1–5 in order. Task 0 is
+closed and must not be requeued. Before starting after any restart, check project
+state and Codex settings for every role; Forge process settings may need to be
+reapplied. This list does not authorize restoring the disabled watcher or
+automatic recovery jobs.

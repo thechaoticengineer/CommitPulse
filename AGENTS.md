@@ -1,5 +1,9 @@
 # Project agreements
 
+Write all project content intended for publication in English, including code
+comments, UI text, documentation, task lists, commit messages, and GitHub content.
+The language used in conversation does not change this requirement.
+
 Read PRODUCT.md before planning or implementing. Its accepted product direction
 supersedes the original open questions in README.md. Update the README as features
 become available; distinguish implemented behavior from planned work.

@@ -37,7 +37,11 @@ ShellRoot {
             realPanel: detail ? detail.moduleName === "dev.commitpulse" && detail.ipcTarget === "dev.commitpulse" : false,
             controllerOpen: controllerOpen,
             opened: widget.opened,
-            anchorValid: anchor ? anchor === demoBar.clickTargets[0] && anchor.width > 0 && anchor.height > 0 && anchorWindow !== null : false,
+            anchorValid: anchor ? anchor === demoBar.clickTargets[0] && anchor.visible && anchor.width > 0 && anchor.height > 0 && anchorWindow === hostWindow : false,
+            hostReady: hostWindow.visible && hostWindow.backingWindowVisible && hostWindow.screen !== null && hostWindow.width > 0 && hostWindow.height > 0,
+            hostScreen: hostWindow.screen ? hostWindow.screen.name : "",
+            hostWidth: hostWindow.width,
+            hostHeight: hostWindow.height,
             hasTotals: detail && detail.dataController ? detail.dataController.hasTotals : false,
             dataRunning: detail && detail.dataController ? detail.dataController.running : true,
             completedRuns: detail && detail.dataController ? detail.dataController.completedRunCount : 0

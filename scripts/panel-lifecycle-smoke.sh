@@ -3,8 +3,13 @@
 set -Eeuo pipefail
 
 repository_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
+smoke_root=""
+runtime_pid=""
+diagnostics=""
+failure_reason="unexpected shell error"
 
 fail() {
+  failure_reason="$*"
   printf 'CommitPulse panel lifecycle smoke: %s\n' "$*" >&2
   exit 1
 }
@@ -14,23 +19,61 @@ for command_name in quickshell hyprctl jq; do
 done
 [[ -n ${WAYLAND_DISPLAY:-} && -n ${XDG_RUNTIME_DIR:-} && -S $XDG_RUNTIME_DIR/$WAYLAND_DISPLAY ]] ||
   fail "an active Wayland socket is required"
+if [[ -n ${COMMITPULSE_EVIDENCE_DIR:-} ]]; then
+  [[ -d $COMMITPULSE_EVIDENCE_DIR && ! -L $COMMITPULSE_EVIDENCE_DIR ]] ||
+    fail "COMMITPULSE_EVIDENCE_DIR must be an existing regular directory"
+fi
 
 /usr/lib/qt6/bin/qmlformat "$repository_root/test/panel-lifecycle-shell.qml" >/dev/null
 /usr/lib/qt6/bin/qmlformat "$repository_root/quickshell/Widget.qml" >/dev/null
 /usr/lib/qt6/bin/qmlformat "$repository_root/quickshell/Popup.qml" >/dev/null
 
 smoke_root="$(mktemp -d "${TMPDIR:-/tmp}/commitpulse-panel-lifecycle.XXXXXX")"
-runtime_pid=""
 cleanup() {
+  local status=$?
+  set +e
+  if (( status != 0 )) && [[ -d $smoke_root ]]; then
+    local failure_dir="$smoke_root/failure"
+    mkdir -p "$failure_dir"
+    printf '%s\n' "$failure_reason" > "$failure_dir/reason.txt"
+    if [[ -n $runtime_pid ]] && kill -0 "$runtime_pid" 2>/dev/null && declare -F ipc >/dev/null; then
+      ipc commitpulse.lifecycle state > "$failure_dir/final-lifecycle-state.json" 2> "$failure_dir/final-lifecycle-state.error"
+    fi
+    hyprctl monitors -j | jq '[.[] | {name, x, y, width, height, scale, transform, focused}]' \
+      > "$failure_dir/final-monitors.json" 2> "$failure_dir/final-monitors.error"
+    hyprctl layers -j | jq --argjson pid "${runtime_pid:-0}" '
+      [to_entries[] as $monitor
+        | $monitor.value.levels | to_entries[] | .value[]
+        | select(.pid == $pid and (
+            .namespace == "commitpulse-lifecycle-host"
+            or .namespace == "omarchy-keyboard-panel"
+            or .namespace == "omarchy-keyboard-panel-dismiss"))
+        | {monitor: $monitor.key, pid, namespace, x, y, w, h, alpha}]
+    ' > "$failure_dir/final-selected-surfaces.json" 2> "$failure_dir/final-selected-surfaces.error"
+    [[ ! -f $diagnostics ]] || tail -c 16384 "$diagnostics" > "$failure_dir/quickshell-bounded.log"
+  fi
   if [[ -n $runtime_pid ]] && kill -0 "$runtime_pid" 2>/dev/null; then
     kill "$runtime_pid" 2>/dev/null || true
     wait "$runtime_pid" 2>/dev/null || true
+  fi
+  if (( status != 0 )); then
+    if [[ -n ${COMMITPULSE_EVIDENCE_DIR:-} && -d $smoke_root/failure ]]; then
+      local evidence_name="panel-lifecycle-failure-${smoke_root##*.}"
+      cp -a -- "$smoke_root/failure" "$COMMITPULSE_EVIDENCE_DIR/$evidence_name"
+      printf 'CommitPulse panel lifecycle smoke: failure evidence: %s\n' \
+        "$COMMITPULSE_EVIDENCE_DIR/$evidence_name" >&2
+    else
+      printf 'CommitPulse panel lifecycle smoke: failure evidence: %s\n' \
+        "$smoke_root/failure" >&2
+    fi
+    return "$status"
   fi
   case "$smoke_root" in
     "${TMPDIR:-/tmp}"/commitpulse-panel-lifecycle.*) rm -rf -- "$smoke_root" ;;
   esac
 }
-trap cleanup EXIT INT TERM
+trap cleanup EXIT
+trap 'failure_reason="received signal"; exit 130' INT TERM
 
 umask 077
 runtime_config="$smoke_root/config-root"
@@ -76,7 +119,7 @@ state=""
 for _ in {1..200}; do
   kill -0 "$runtime_pid" 2>/dev/null || break
   if state="$(ipc commitpulse.lifecycle state 2>/dev/null)" &&
-    jq -e '.loaderReady and .realPanel and .anchorValid and (.completedRuns >= 1) and (.dataRunning | not) and (.hasTotals | not)' <<<"$state" >/dev/null 2>&1; then
+    jq -e '.loaderReady and .realPanel and .anchorValid and .hostReady and (.completedRuns >= 1) and (.dataRunning | not) and (.hasTotals | not)' <<<"$state" >/dev/null 2>&1; then
     break
   fi
   sleep 0.05
@@ -85,18 +128,45 @@ kill -0 "$runtime_pid" 2>/dev/null || {
   sed -n '1,120p' "$diagnostics" >&2
   fail "Quickshell exited before the panel became ready"
 }
-jq -e '.loaderReady and .realPanel and .anchorValid and (.completedRuns >= 1) and (.dataRunning | not) and (.hasTotals | not)' <<<"$state" >/dev/null || {
+jq -e '.loaderReady and .realPanel and .anchorValid and .hostReady and (.completedRuns >= 1) and (.dataRunning | not) and (.hasTotals | not)' <<<"$state" >/dev/null || {
   sed -n '1,120p' "$diagnostics" >&2
-  fail "real panel Loader, anchor, or unavailable-data precondition was not ready"
+  fail "real panel Loader, mapped host, anchor, or unavailable-data precondition was not ready"
+}
+
+namespace_snapshot() {
+  local namespace="$1"
+  hyprctl layers -j | jq -c --argjson pid "$runtime_pid" --arg namespace "$namespace" '
+    [to_entries[] as $monitor
+      | $monitor.value.levels | to_entries[] | .value[]
+      | select(.pid == $pid and .namespace == $namespace)
+      | {monitor: $monitor.key, x, y, w, h, alpha}]
+  '
 }
 
 surface_snapshot() {
-  hyprctl layers -j | jq -c --argjson pid "$runtime_pid" '
-    [to_entries[] as $monitor
-      | $monitor.value.levels | to_entries[] | .value[]
-      | select(.pid == $pid and .namespace == "omarchy-keyboard-panel")
-      | {monitor: $monitor.key, x, y, w, h, alpha}]
-  '
+  namespace_snapshot "omarchy-keyboard-panel"
+}
+
+assert_host_surface() {
+  local snapshot="" monitors=""
+  for _ in {1..100}; do
+    state="$(ipc commitpulse.lifecycle state 2>/dev/null || true)"
+    snapshot="$(namespace_snapshot "commitpulse-lifecycle-host" 2>/dev/null || true)"
+    if jq -e '.hostReady and .anchorValid' <<<"$state" >/dev/null 2>&1 &&
+      jq -e 'length == 1 and .[0].w > 0 and .[0].h > 0 and .[0].alpha > 0' <<<"$snapshot" >/dev/null 2>&1; then
+      break
+    fi
+    sleep 0.05
+  done
+  monitors="$(hyprctl monitors -j)"
+  jq -e --argjson monitors "$monitors" '
+    (length == 1)
+    and (.[0] as $surface
+      | any($monitors[]; .name == $surface.monitor
+        and $surface.x >= .x and $surface.y >= .y
+        and $surface.x + $surface.w <= .x + .width
+        and $surface.y + $surface.h <= .y + .height))
+  ' <<<"$snapshot" >/dev/null || fail "synthetic bar host surface was absent, zero-sized, or off-screen"
 }
 
 assert_open_surface() {
@@ -138,6 +208,7 @@ assert_closed_surface() {
 
 # Invoke WidgetButton.triggerPress(Qt.LeftButton), the same exported action the
 # production MouseArea uses, then close through the production panel IPC.
+assert_host_surface
 assert_closed_surface
 ipc commitpulse.lifecycle press >/dev/null
 assert_open_surface "first unavailable-data open"
@@ -157,8 +228,6 @@ if grep -Eiq 'module .+ is not installed|is not a type|Cannot assign|ReferenceEr
 fi
 
 if [[ -n ${COMMITPULSE_EVIDENCE_DIR:-} ]]; then
-  [[ -d $COMMITPULSE_EVIDENCE_DIR && ! -L $COMMITPULSE_EVIDENCE_DIR ]] ||
-    fail "COMMITPULSE_EVIDENCE_DIR must be an existing regular directory"
   cp -- "$diagnostics" "$COMMITPULSE_EVIDENCE_DIR/panel-lifecycle-quickshell.log"
 fi
 

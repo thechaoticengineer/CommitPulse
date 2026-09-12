@@ -176,9 +176,19 @@ and manual paths, retained non-zero totals, non-zero exits, and a maximum of one
 active process. The visual smoke stages the same complete tree and checks the
 actual bar and popup presentations against those scenarios when Quickshell and
 an active Wayland socket are available. The panel lifecycle smoke loads the
-real widget and panel against the installed Omarchy APIs, opens through the
-registered left-click action with unavailable data, verifies the positive-size
-on-screen Hyprland surface, closes it through production IPC, and reopens it.
+real widget and panel against the installed Omarchy APIs, waits until its
+synthetic bar is itself mapped on-screen, opens through the registered
+left-click action with unavailable data, verifies the positive-size on-screen
+Hyprland surface, closes it through production IPC, and reopens it. On failure,
+it retains private bounded QML diagnostics plus final lifecycle, monitor, and
+selected-surface snapshots so controller state can be distinguished from
+compositor mapping.
+Known limitation: the compositor lifecycle smoke can fail to find its synthetic
+host surface even when the installed panel works. The user has confirmed the
+installed fix, but the final automated review was not approved. See the
+[repair disposition](docs/panel-opening-repair.md#final-disposition-accepted-by-the-user)
+for the evidence and remaining test issue.
+
 That acceptance smoke requires an active Wayland/Hyprland session and fails
 clearly if one is unavailable; the general visual workflow still reports an
 honest runtime skip after its static checks. All QML smokes use private

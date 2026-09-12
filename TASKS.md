@@ -1,7 +1,7 @@
 # CommitPulse — panel statystyk contributions
 
-Status: **użytkownik zezwolił na uruchomienie w Forge wyłącznie zadania 0 — naprawy
-otwierania panelu**. Zadania redesignu 1–5 pozostają zapisane na później, bez zgody
+Status: **zadanie 0 — naprawa otwierania panelu — zaakceptowane ręcznie przez
+użytkownika i zamknięte na jego polecenie**. Zadania redesignu 1–5 pozostają zapisane na później, bez zgody
 na uruchomienie. Użytkownik osobno naprawia ReviewBox; nie zakłócać tej pracy.
 
 ## Kierunek
@@ -17,6 +17,12 @@ czas aktualizacji i akcje. Licznik w pasku pozostaje wejściem do pełnego panel
 tooltip służy jedynie krótkiej podpowiedzi.
 
 ## 0. Naprawa otwierania istniejącego panelu
+
+Użytkownik potwierdził działanie zainstalowanego panelu i polecił opublikować oraz
+zamknąć poprawkę. Automatyczne review pozostało zablokowane: compositorowy test
+regresji nie przechodził stabilnie, a ostatnią próbę przerwała niedostępność usługi
+Codexa. Akceptacja użytkownika nie oznacza zaliczenia tych kontroli. Szczegóły
+i zachowane ograniczenia: [raport naprawy](docs/panel-opening-repair.md).
 
 Użytkownik potwierdził, że kliknięcie licznika nie otwierało żadnego panelu — widoczny
 był jedynie tooltip. Problem był niezależny od oczekiwanego redesignu. Przyczyną

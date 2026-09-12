@@ -269,3 +269,82 @@ component/import/type/property/binding/path/anchor or Wayland errors. Its unused
 also emitted by stock bar panels on each load; shell routing and the retained
 handler both succeeded in the lifecycle above. Task 0 is complete; no redesign
 work was started.
+
+## Deferred review regression stabilization (2026-09-12)
+
+Independent review exposed a timing gap in the compositor-backed regression:
+the harness considered the anchor ready as soon as its QML window object
+existed, then dispatched the production action before the synthetic bar's layer
+surface was necessarily mapped to an output. A real pointer click cannot occur
+at that point. This could leave the controller open while the first popup had
+no observable surface, making the test intermittently report an absent or
+off-screen unavailable-data panel even though the installed-session lifecycle
+had succeeded.
+
+The harness now requires both QML `backingWindowVisible` state and exactly one
+positive-size, on-screen `commitpulse-lifecycle-host` Hyprland surface before it
+invokes `WidgetButton.triggerPress(Qt.LeftButton)`. The production widget and
+popup remain unchanged. On any failure, the smoke retains a private bounded
+Quickshell diagnostic excerpt, final lifecycle IPC state, bounded monitor list,
+and the scratch process's selected host/popup surface snapshot before cleanup.
+Those artifacts identify whether the first failing boundary is the
+widget/controller lifecycle or compositor surface mapping and geometry.
+
+The deferred-review checks used the final working tree and retained their full
+output in `/tmp/commitpulse-deferred-final.HCNdzW`:
+
+| Command | Exit | Result |
+| --- | ---: | --- |
+| `npm run build:helper` | 0 | Go helper build passed. |
+| `npm test` | 0 | 29 tests passed, 0 failed. |
+| `npm run smoke:panel` (three consecutive runs) | 0 | Every real unavailable-data popup opened on-screen, closed through production IPC, reopened, and closed. Ten earlier stress runs also passed. |
+| `npm run validate` | 0 | Go, Node, QML/controller/real-panel, helper, shell syntax, installer lifecycle, and diff checks passed. |
+| `npm run smoke:live` | 0 | Privacy-safe live helper smoke passed. |
+| `./install.sh` | 0 | Only `dev.commitpulse` was updated through the existing installer. |
+
+The install preserved directory inode `1215500`, the byte-identical
+`shell.json`, CommitPulse at `right[1]`, the unrelated plugin catalog, and the
+new plugin and shell backups. Repository and installed manifest/widget/popup
+remain byte-identical. In the running shell, production summon opened one
+on-screen 1920 by 1080 surface, supported hide removed it, direct CommitPulse
+toggle reopened one surface, and Escape removed it after the stock panel's
+75-ms focus prime. All three installed bar instances remained visible at 74 by
+26. A byte-preserving plugin touch also exercised the repaired hot reload; the
+shell observed the local-plugin change without a restart. The final panel count
+is zero, shell IPC responds, and the bounded post-install journal contains zero
+relevant CommitPulse QML/component/import/property/anchor/Wayland errors.
+
+The real scratch lifecycle's helper is deliberately unavailable, so the three
+final runs re-proved opening in that state. The already accepted installed
+unavailable-state evidence from stage 3 remains the privacy-safe 300 by 112 crop
+and corresponding live surface record above; no personal-data screenshot was
+published. No production QML, helper behavior, shell layout, watcher, recovery
+timer, Forge process, ReviewBox state, or redesign task changed during this
+deferred-review correction.
+
+
+## Final disposition: accepted by the user
+
+The user confirmed that the installed panel works and explicitly instructed us
+to push and close this repair. This is manual functional acceptance, not an
+approved automated Forge review.
+
+The successful-run table above describes earlier implementation observations.
+Subsequent independent and architectural reviews failed three fresh lifecycle
+smoke runs: QML reported a ready host, but the PID/namespace lookup found no
+`commitpulse-lifecycle-host` Hyprland surface. Aggregate validation consequently
+failed at the same boundary. The final fixer invocation then stopped with
+`Unable to verify model access right now`. The automatic plan review remained
+blocked; its records and remaining findings are preserved.
+
+The uncommitted diagnostic improvements are retained: host readiness checks and
+bounded failure artifacts aid a later investigation of the test harness. They
+are not represented as a proven solution to its compositor-mapping failure.
+No additional production widget change is included in this finalization.
+
+Finalization checks passed: `npm test` (five test files passed, none failed),
+`bash -n scripts/panel-lifecycle-smoke.sh`, parsing
+`test/panel-lifecycle-shell.qml` with `qmlformat`, and `git diff --check`.
+The known-failing compositor smoke and full validation were not rerun or marked
+passed. The user's explicit acceptance authorizes publication despite that
+remaining test limitation. Redesign tasks remain deferred.

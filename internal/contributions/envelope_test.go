@@ -76,3 +76,29 @@ func TestEnvelopeValidationRejectsPartialAndMisleadingStates(t *testing.T) {
 		t.Fatal("stale envelope with partial periods was accepted")
 	}
 }
+
+func TestFreshEnvelopeAllowsOnlySanitizedCachePersistenceError(t *testing.T) {
+	t.Parallel()
+	now := time.Date(2096, time.January, 1, 0, 0, 0, 0, time.UTC)
+	bounds, err := BoundsFor(now, "UTC")
+	if err != nil {
+		t.Fatal(err)
+	}
+	aggregation, err := Aggregate(now, "UTC", completeDays(bounds, func(int) int64 { return 1 }))
+	if err != nil {
+		t.Fatal(err)
+	}
+	envelope, err := FreshEnvelopeWithCacheError(
+		aggregation,
+		now,
+		now,
+		Visibility{PrivateContributions: VisibilityUnknown},
+	)
+	if err != nil || envelope.Error == nil || envelope.Error.Kind != ErrorKindInternal {
+		t.Fatalf("cache persistence envelope = %#v, %v", envelope, err)
+	}
+	envelope.Error = &ContractError{Kind: ErrorKindOffline, Message: "not a persistence error"}
+	if err := ValidateEnvelope(envelope); err == nil {
+		t.Fatal("fresh envelope accepted a non-persistence error kind")
+	}
+}

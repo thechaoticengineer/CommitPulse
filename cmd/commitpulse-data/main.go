@@ -6,7 +6,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"time"
 
 	"github.com/thechaoticengineer/commitpulse/internal/contributions"
 )
@@ -27,52 +26,26 @@ func main() {
 		os.Exit(2)
 	}
 
-	now := time.Now()
-	bounds, err := contributions.BoundsFor(now, timezone)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(2)
-	}
 	client, err := contributions.NewGitHubClient(nil, nil, nil, contributions.FetchOptions{})
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "failed to initialize contribution fetch")
 		os.Exit(1)
 	}
-	attemptedAt := now.UTC()
-	fetched, fetchErr := client.Fetch(context.Background(), bounds)
-	var envelope contributions.Envelope
-	if fetchErr != nil {
-		envelope, err = contributions.UnavailableEnvelope(
-			bounds.EffectiveTimezone,
-			&attemptedAt,
-			fetchErr.RetryAt,
-			fetchErr.Kind,
-			fetchErr.Message,
-		)
-	} else {
-		aggregation, aggregateErr := contributions.Aggregate(now, timezone, fetched.Days)
-		if aggregateErr != nil {
-			envelope, err = contributions.UnavailableEnvelope(
-				bounds.EffectiveTimezone,
-				&attemptedAt,
-				nil,
-				contributions.ErrorKindMalformedResponse,
-				"GitHub returned an invalid response.",
-			)
-		} else {
-			updatedAt := time.Now().UTC()
-			envelope, err = contributions.FreshEnvelopeWithVisibility(aggregation, attemptedAt, updatedAt, fetched.Visibility)
-		}
-	}
+	service, err := contributions.NewCachedService(client, contributions.CacheOptions{})
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "failed to create helper output")
+		fmt.Fprintln(os.Stderr, "failed to initialize contribution cache")
 		os.Exit(1)
+	}
+	envelope, err := service.Run(context.Background(), timezone)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "the requested timezone is not a valid IANA location")
+		os.Exit(2)
 	}
 	if err := contributions.WriteEnvelope(os.Stdout, envelope); err != nil {
 		fmt.Fprintln(os.Stderr, "failed to write helper output")
 		os.Exit(1)
 	}
-	if fetchErr != nil || envelope.State == contributions.StateUnavailable {
+	if envelope.Error != nil {
 		os.Exit(1)
 	}
 }

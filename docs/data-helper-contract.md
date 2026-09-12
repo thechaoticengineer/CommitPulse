@@ -3,8 +3,9 @@
 `cmd/commitpulse-data` is the repository-owned Go command that will supply
 contribution data to the QML layer. It now fetches the authenticated viewer's
 calendar through the installed GitHub CLI, validates and aggregates the
-response, and writes the stable JSON contract below. Cache storage, refresh
-scheduling, and QML live-data wiring are later stages.
+response, and writes the stable JSON contract below. Cache storage and stale
+fallback are implemented; refresh scheduling and QML live-data wiring are later
+stages.
 
 The helper invokes exactly one read-only `gh api graphql` request when the first
 attempt succeeds. It relies on `gh`'s existing authentication, never accepts or
@@ -55,7 +56,7 @@ GitHub response. The schema fields are:
 | `lastUpdated` | Time of the last successful fetch; required for `fresh` and `stale`, absent for `unavailable`. |
 | `retryAt` | Optional earliest safe retry time for a rate-limited request. |
 | `visibility` | `included` when GitHub reports restricted contributions in the selected range; otherwise `unknown`, because zero cannot distinguish no private activity, disabled private-count sharing, or missing optional scope. |
-| `error` | Required for `stale`/`unavailable`, absent for `fresh`; contains a stable `kind` and sanitized fixed `message`. |
+| `error` | Required for `stale`/`unavailable`; normally absent for `fresh`, except that a successful fetch with failed cache persistence remains fresh and carries a sanitized `internal` error. |
 
 An `unavailable` result deliberately has no `periods` or `lastUpdated`. A
 failure therefore cannot be mistaken for four genuine zero-contribution totals.
@@ -120,8 +121,46 @@ Stable fetch error kinds are `missing_gh`, `authentication`, `offline`,
 message is fixed project-owned text. Raw stdout/stderr, GraphQL messages,
 command environments, viewer identity, and contribution values are never used
 in logs or error text. A top-level GraphQL error fails the entire fetch even if
-partial `data` is present. Without a stage-3 cache, any failure emits
-`unavailable` with no periods; stale fallback is not implemented yet.
+partial `data` is present.
+
+## Cache and cross-process retry semantics
+
+The helper resolves its cache directory as `$XDG_CACHE_HOME/commitpulse`. When
+`XDG_CACHE_HOME` is unset it uses Go's standard user-cache directory and appends
+`commitpulse`; a relative XDG path is rejected. The application directory is
+mode `0700`, while the lock and JSON files are mode `0600`. Runtime cache files
+contain private contribution totals and must not be copied into the repository
+or logs.
+
+The versioned `success-v1.json` file contains only the last validated four
+totals, their effective timezone, `lastUpdated`, and contribution-visibility
+state. The versioned `retry-v1.json` file contains only a sanitized rate-limit
+error, its attempted time, and its bounded retry time. Each file is capped
+before and during reads; malformed, oversized, wrong-version, wrongly
+permissioned, symlinked, non-regular, or timezone-incompatible data is ignored.
+
+Writes use a unique same-directory temporary file, mode it privately, write and
+sync the complete bounded JSON, close it, revalidate the destination, atomically
+rename it, and sync the containing directory. Interrupted temporary files are
+never read. A Linux advisory lock is acquired with a two-second bounded wait and
+held from retry-state inspection through the GitHub request and cache update,
+preventing concurrent helper processes from overlapping authenticated calls.
+
+A successful fetch atomically replaces the last success and emits `fresh` with
+new `attemptedAt` and `lastUpdated` metadata. If persistence fails, the verified
+current totals remain `fresh` but include a fixed `internal` cache error; any old
+complete success is left intact. A fetch or aggregation failure emits a valid
+matching cached success as `stale`, preserving its totals, visibility, and
+`lastUpdated` while adding the current attempt and sanitized error. With no
+valid success it emits `unavailable`, omits `periods` and `lastUpdated`, and
+never substitutes four zeroes.
+
+Rate-limit state is independent of successful totals, so suppression also works
+on a cache miss. Before `retryAt`, a later process performs no GitHub request and
+re-emits the saved fixed rate-limit status as `stale` or `unavailable`. Retry
+windows are capped at one hour; expired or invalid state never suppresses a
+request. Cache contents and user-controlled cache paths are never included in
+helper diagnostics.
 
 ## Deterministic inputs
 

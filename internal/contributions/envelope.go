@@ -83,6 +83,20 @@ func FreshEnvelope(aggregation Aggregation, attemptedAt, lastUpdated time.Time) 
 // visibility metadata returned by GitHub. Account identifiers are deliberately
 // not part of the stdout contract.
 func FreshEnvelopeWithVisibility(aggregation Aggregation, attemptedAt, lastUpdated time.Time, visibility Visibility) (Envelope, error) {
+	return freshEnvelope(aggregation, attemptedAt, lastUpdated, visibility, nil)
+}
+
+// FreshEnvelopeWithCacheError retains verified current totals when durable
+// cache replacement fails. The error is fixed project-owned text; callers can
+// still distinguish truthful current data from persistence durability.
+func FreshEnvelopeWithCacheError(aggregation Aggregation, attemptedAt, lastUpdated time.Time, visibility Visibility) (Envelope, error) {
+	return freshEnvelope(aggregation, attemptedAt, lastUpdated, visibility, &ContractError{
+		Kind:    ErrorKindInternal,
+		Message: "Contribution data could not be cached.",
+	})
+}
+
+func freshEnvelope(aggregation Aggregation, attemptedAt, lastUpdated time.Time, visibility Visibility, contractError *ContractError) (Envelope, error) {
 	periods := append([]Period(nil), aggregation.Periods...)
 	envelope := Envelope{
 		SchemaVersion:     SchemaVersion,
@@ -92,6 +106,7 @@ func FreshEnvelopeWithVisibility(aggregation Aggregation, attemptedAt, lastUpdat
 		AttemptedAt:       timePointer(attemptedAt),
 		LastUpdated:       timePointer(lastUpdated),
 		Visibility:        visibility,
+		Error:             contractError,
 	}
 	return envelope, ValidateEnvelope(envelope)
 }
@@ -99,6 +114,20 @@ func FreshEnvelopeWithVisibility(aggregation Aggregation, attemptedAt, lastUpdat
 // StaleEnvelope retains a previously validated aggregation after a later
 // attempt failed. It cannot be used without all four existing period totals.
 func StaleEnvelope(aggregation Aggregation, attemptedAt, lastUpdated time.Time, retryAt *time.Time, kind ErrorKind, message string) (Envelope, error) {
+	return StaleEnvelopeWithVisibility(
+		aggregation,
+		attemptedAt,
+		lastUpdated,
+		retryAt,
+		Visibility{PrivateContributions: VisibilityUnknown},
+		kind,
+		message,
+	)
+}
+
+// StaleEnvelopeWithVisibility preserves all minimal data from the most recent
+// successful response while reporting the current sanitized failure.
+func StaleEnvelopeWithVisibility(aggregation Aggregation, attemptedAt, lastUpdated time.Time, retryAt *time.Time, visibility Visibility, kind ErrorKind, message string) (Envelope, error) {
 	periods := append([]Period(nil), aggregation.Periods...)
 	envelope := Envelope{
 		SchemaVersion:     SchemaVersion,
@@ -108,7 +137,7 @@ func StaleEnvelope(aggregation Aggregation, attemptedAt, lastUpdated time.Time, 
 		AttemptedAt:       timePointer(attemptedAt),
 		LastUpdated:       timePointer(lastUpdated),
 		RetryAt:           copyTimePointer(retryAt),
-		Visibility:        Visibility{PrivateContributions: VisibilityUnknown},
+		Visibility:        visibility,
 		Error:             &ContractError{Kind: kind, Message: message},
 	}
 	return envelope, ValidateEnvelope(envelope)
@@ -147,8 +176,11 @@ func ValidateEnvelope(envelope Envelope) error {
 
 	switch envelope.State {
 	case StateFresh:
-		if envelope.AttemptedAt == nil || envelope.LastUpdated == nil || envelope.Error != nil {
+		if envelope.AttemptedAt == nil || envelope.LastUpdated == nil {
 			return malformed("a fresh output has invalid update metadata")
+		}
+		if envelope.Error != nil && envelope.Error.Kind != ErrorKindInternal {
+			return malformed("a fresh output has an invalid persistence error")
 		}
 		return validatePeriods(envelope.Periods)
 	case StateStale:

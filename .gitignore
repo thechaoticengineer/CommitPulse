@@ -20,6 +20,11 @@ commitpulse-smoke.*/
 # Forge runtime and local contribution cache
 .forge/
 .commitpulse/
+commitpulse-data
+success-v1.json
+retry-v1.json
+cache.lock
+.commitpulse-*.tmp
 bin/
 dist/
 coverage.out

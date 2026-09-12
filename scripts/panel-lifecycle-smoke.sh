@@ -16,8 +16,8 @@ done
   fail "an active Wayland socket is required"
 
 /usr/lib/qt6/bin/qmlformat "$repository_root/test/panel-lifecycle-shell.qml" >/dev/null
-/usr/lib/qt6/bin/qmlformat "$repository_root/quickshell/BarWidget.qml" >/dev/null
-/usr/lib/qt6/bin/qmlformat "$repository_root/quickshell/Panel.qml" >/dev/null
+/usr/lib/qt6/bin/qmlformat "$repository_root/quickshell/Widget.qml" >/dev/null
+/usr/lib/qt6/bin/qmlformat "$repository_root/quickshell/Popup.qml" >/dev/null
 
 smoke_root="$(mktemp -d "${TMPDIR:-/tmp}/commitpulse-panel-lifecycle.XXXXXX")"
 runtime_pid=""

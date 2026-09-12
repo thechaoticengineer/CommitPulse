@@ -4,8 +4,8 @@ import QtQuick
 import qs.Commons
 import qs.Ui
 
-// Anchored detail popup. It intentionally remains valid while the eager
-// loader creates it before BarWidget.qml has supplied a bar or anchor.
+// Anchored CommitPulse detail popup. It intentionally remains valid while the eager
+// loader creates it before Widget.qml has supplied a bar or anchor.
 Panel {
     id: root
     moduleName: "dev.commitpulse"

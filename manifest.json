@@ -10,7 +10,7 @@
     "bar-widget"
   ],
   "entryPoints": {
-    "barWidget": "quickshell/BarWidget.qml"
+    "barWidget": "quickshell/Widget.qml"
   },
   "barWidget": {
     "displayName": "CommitPulse",

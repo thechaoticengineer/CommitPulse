@@ -11,12 +11,12 @@ test("manifest entry point is implemented by the bar widget", () => {
   const entryPoint = path.join(repositoryRoot, manifest.entryPoints.barWidget)
 
   assert.equal(fs.existsSync(entryPoint), true)
-  assert.match(readQml("BarWidget.qml"), /moduleName:\s*"dev\.commitpulse"/)
+  assert.match(readQml("Widget.qml"), /moduleName:\s*"dev\.commitpulse"/)
 })
 
 test("one asynchronous controller is owned by the widget and injected into the popup", () => {
-  const widget = readQml("BarWidget.qml")
-  const panel = readQml("Panel.qml")
+  const widget = readQml("Widget.qml")
+  const panel = readQml("Popup.qml")
   const controller = readQml("DataController.qml")
 
   assert.equal((widget.match(/DataController\s*\{/g) || []).length, 1)
@@ -46,7 +46,7 @@ test("one asynchronous controller is owned by the widget and injected into the p
 })
 
 test("bar widget preserves the installed nested popout lifecycle", () => {
-  const widget = readQml("BarWidget.qml")
+  const widget = readQml("Widget.qml")
 
   for (const member of ["opened", "open", "close", "toggle", "togglePanel", "closeForPopoutSwitch", "injectPanel"]) {
     assert.match(widget, new RegExp(`(?:property|function)\\s+(?:\\w+\\s+)?${member}\\b`))
@@ -54,12 +54,14 @@ test("bar widget preserves the installed nested popout lifecycle", () => {
   assert.match(widget, /popoutSwitchClosing/)
   assert.match(widget, /anchorItem"\s+in\s+target\)\s+target\.anchorItem = button/)
   assert.match(widget, /onPressed:\s*function\s*\(mouseButton\)\s*\{\s*if \(mouseButton === Qt\.LeftButton\)\s+root\.togglePanel\(\)/)
-  assert.match(widget, /source:\s*Qt\.resolvedUrl\("Panel\.qml"\)/)
+  assert.match(widget, /import "\." as CommitPulse/)
+  assert.match(widget, /sourceComponent:\s*Component\s*\{\s*CommitPulse\.Popup\s*\{\}/)
+  assert.doesNotMatch(widget, /source:\s*Qt\.resolvedUrl\("Popup\.qml"\)/)
   assert.match(widget, /active:\s*true/)
 })
 
 test("detail popup preserves the Panel and KeyboardPanel lifecycle and focus contract", () => {
-  const panel = readQml("Panel.qml")
+  const panel = readQml("Popup.qml")
 
   assert.match(panel, /^Panel\s*\{/m)
   assert.match(panel, /KeyboardPanel\s*\{/)
@@ -78,8 +80,8 @@ test("detail popup preserves the Panel and KeyboardPanel lifecycle and focus con
 })
 
 test("live UI exposes four truthful counters and every required presentation", () => {
-  const widget = readQml("BarWidget.qml")
-  const panel = readQml("Panel.qml")
+  const widget = readQml("Widget.qml")
+  const panel = readQml("Popup.qml")
   const state = readQml("ContributionState.js")
 
   for (const label of ["Today", "Week", "Month", "Year"]) {
@@ -113,7 +115,7 @@ test("live UI exposes four truthful counters and every required presentation", (
 })
 
 test("popup actions use native controls, guarded refresh, and a fixed safe profile target", () => {
-  const panel = readQml("Panel.qml")
+  const panel = readQml("Popup.qml")
 
   assert.equal((panel.match(/\bButton\s*\{/g) || []).length, 2)
   assert.match(panel, /enabled:\s*dataController \? dataController\.canRefresh : false/)
@@ -130,8 +132,8 @@ test("popup actions use native controls, guarded refresh, and a fixed safe profi
 })
 
 test("live surfaces use native Omarchy styling without a hard-coded palette", () => {
-  const widget = readQml("BarWidget.qml")
-  const panel = readQml("Panel.qml")
+  const widget = readQml("Widget.qml")
+  const panel = readQml("Popup.qml")
 
   for (const qml of [widget, panel]) {
     assert.match(qml, /\bStyle\./)

@@ -25,11 +25,6 @@ commitpulse_require_command() {
   command -v "$1" >/dev/null 2>&1 || commitpulse_fail "required command not found: $1"
 }
 
-commitpulse_require_atomic_exchange() {
-  mv --help 2>&1 | grep -Fq -- '--exchange' ||
-    commitpulse_fail "mv does not support the atomic --exchange operation"
-}
-
 commitpulse_reject_arguments() {
   local command_name="$1"
   shift
@@ -117,7 +112,10 @@ commitpulse_assert_manifest_identity() {
     .schemaVersion == 1
     and .id == $id
     and (.kinds | type == "array" and index("bar-widget") != null)
-    and .entryPoints.barWidget == "quickshell/BarWidget.qml"
+    and (
+      .entryPoints.barWidget == "quickshell/BarWidget.qml"
+      or .entryPoints.barWidget == "quickshell/Widget.qml"
+    )
   ' "$tree/manifest.json" >/dev/null ||
     commitpulse_fail "unexpected plugin manifest identity at $tree"
 }
@@ -451,17 +449,50 @@ commitpulse_build_stage() {
   commitpulse_run_omarchy plugin validate "$stage"
 }
 
+commitpulse_atomic_copy_file() {
+  local source="$1" target="$2" target_dir temporary
+  target_dir="$(dirname -- "$target")"
+  temporary="$(mktemp "$target_dir/.commitpulse-file.XXXXXX")"
+  if ! cp -p -- "$source" "$temporary"; then
+    rm -f -- "$temporary"
+    return 1
+  fi
+  mv -f -- "$temporary" "$target"
+}
+
+commitpulse_sync_tree() {
+  local source="$1" destination="$2" relative target
+
+  while IFS= read -r -d '' relative; do
+    [[ -z $relative ]] || mkdir -p -- "$destination/$relative"
+  done < <(cd -- "$source" && find . -mindepth 1 -type d -printf '%P\0' | sort -z)
+
+  while IFS= read -r -d '' relative; do
+    case "$relative" in
+      manifest.json|quickshell/Widget.qml) continue ;;
+    esac
+    commitpulse_atomic_copy_file "$source/$relative" "$destination/$relative"
+  done < <(cd -- "$source" && find . -type f -printf '%P\0' | sort -z)
+
+  [[ ! -f $source/quickshell/Widget.qml ]] ||
+    commitpulse_atomic_copy_file "$source/quickshell/Widget.qml" "$destination/quickshell/Widget.qml"
+  commitpulse_atomic_copy_file "$source/manifest.json" "$destination/manifest.json"
+
+  while IFS= read -r -d '' target; do
+    relative="${target#"$destination/"}"
+    [[ -f $source/$relative ]] || rm -f -- "$target"
+  done < <(find "$destination" -type f -print0)
+  find "$destination" -depth -mindepth 1 -type d -empty -delete
+  commitpulse_assert_regular_tree "$destination"
+  commitpulse_assert_manifest_identity "$destination"
+}
+
 commitpulse_restore_plugin() {
-  local restore_stage
   if [[ -n ${COMMITPULSE_PLUGIN_BACKUP:-} ]]; then
-    restore_stage="$(mktemp -d "$COMMITPULSE_PLUGINS_DIR/.dev.commitpulse.restore.XXXXXX")"
-    cp -a -- "$COMMITPULSE_PLUGIN_BACKUP/." "$restore_stage/"
-    chmod --reference="$COMMITPULSE_PLUGIN_BACKUP" "$restore_stage"
     if [[ -e $COMMITPULSE_DESTINATION ]]; then
-      mv --exchange --no-target-directory -- "$restore_stage" "$COMMITPULSE_DESTINATION"
-      rm -rf -- "$restore_stage"
+      commitpulse_sync_tree "$COMMITPULSE_PLUGIN_BACKUP" "$COMMITPULSE_DESTINATION"
     else
-      mv -- "$restore_stage" "$COMMITPULSE_DESTINATION"
+      cp -a -- "$COMMITPULSE_PLUGIN_BACKUP" "$COMMITPULSE_DESTINATION"
     fi
   elif [[ -e $COMMITPULSE_DESTINATION ]]; then
     rm -rf -- "$COMMITPULSE_DESTINATION"
@@ -511,7 +542,6 @@ commitpulse_install() {
   for command_name in go jq omarchy realpath find mktemp mv grep; do
     commitpulse_require_command "$command_name"
   done
-  commitpulse_require_atomic_exchange
   commitpulse_resolve_user_root
 
   preparation_root="$(mktemp -d "${TMPDIR:-/tmp}/commitpulse-install.XXXXXX")"
@@ -543,14 +573,12 @@ commitpulse_install() {
   if [[ -e $COMMITPULSE_DESTINATION ]]; then
     local backup_path
     backup_path="$(commitpulse_new_backup_path "$COMMITPULSE_PLUGINS_DIR/.$COMMITPULSE_PLUGIN_ID.backup")"
-    mv --exchange --no-target-directory -- "$transfer_stage" "$COMMITPULSE_DESTINATION"
-    COMMITPULSE_PLUGIN_BACKUP="$transfer_stage"
-    mv -- "$transfer_stage" "$backup_path"
+    cp -a -- "$COMMITPULSE_DESTINATION" "$backup_path"
     COMMITPULSE_PLUGIN_BACKUP="$backup_path"
+    commitpulse_sync_tree "$transfer_stage" "$COMMITPULSE_DESTINATION"
   else
     mv -- "$transfer_stage" "$COMMITPULSE_DESTINATION"
   fi
-  COMMITPULSE_TRANSFER_STAGE=""
 
   if (( COMMITPULSE_SHELL_EXISTED )); then
     commitpulse_dedupe_owned_bar_state "$COMMITPULSE_SHELL_JSON" "$generated"

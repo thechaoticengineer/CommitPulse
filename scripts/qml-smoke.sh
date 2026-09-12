@@ -26,9 +26,9 @@ done
 static_check() {
   (cd "$repository_root" && npm test)
   /usr/lib/qt6/bin/qmlformat "$repository_root/demo/shell.qml" > /dev/null
-  /usr/lib/qt6/bin/qmlformat "$repository_root/quickshell/BarWidget.qml" > /dev/null
+  /usr/lib/qt6/bin/qmlformat "$repository_root/quickshell/Widget.qml" > /dev/null
   /usr/lib/qt6/bin/qmlformat "$repository_root/quickshell/DataController.qml" > /dev/null
-  /usr/lib/qt6/bin/qmlformat "$repository_root/quickshell/Panel.qml" > /dev/null
+  /usr/lib/qt6/bin/qmlformat "$repository_root/quickshell/Popup.qml" > /dev/null
   /usr/lib/qt6/bin/qmlformat "$repository_root/test/controller-shell.qml" > /dev/null
 }
 
@@ -79,9 +79,9 @@ chmod 700 "$smoke_root/home" "$smoke_root/config" "$smoke_root/cache" "$smoke_ro
 # then make those resolution points explicit links to the packaged, read-only
 # Omarchy APIs. The real user plugin directory is never considered.
 cp "$repository_root/demo/shell.qml" "$runtime_demo/DemoRoot.qml"
-cp "$repository_root/quickshell/BarWidget.qml" "$runtime_quickshell/BarWidget.qml"
+cp "$repository_root/quickshell/Widget.qml" "$runtime_quickshell/Widget.qml"
 cp "$repository_root/quickshell/DataController.qml" "$runtime_quickshell/DataController.qml"
-cp "$repository_root/quickshell/Panel.qml" "$runtime_quickshell/Panel.qml"
+cp "$repository_root/quickshell/Popup.qml" "$runtime_quickshell/Popup.qml"
 cp "$repository_root/quickshell/ContributionFixture.js" "$runtime_quickshell/ContributionFixture.js"
 cp "$repository_root/quickshell/ContributionState.js" "$runtime_quickshell/ContributionState.js"
 cp "$repository_root/manifest.json" "$stage_root/manifest.json"

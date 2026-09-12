@@ -13,7 +13,7 @@ test("demo root instantiates the widget and opens its popup", () => {
   const demo = read("demo/shell.qml")
 
   assert.match(demo, /^ShellRoot\s*\{/m)
-  assert.match(demo, /CommitPulse\.BarWidget\s*\{/)
+  assert.match(demo, /CommitPulse\.Widget\s*\{/)
   assert.match(demo, /bar:\s*demoBar/)
   assert.match(demo, /widget\.open\(\)/)
   assert.match(demo, /COMMITPULSE_SMOKE_READY: fresh stale auth malformed manual maximum active 1/)

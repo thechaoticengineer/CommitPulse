@@ -175,9 +175,9 @@ assert_complete_install() {
   assert_directory "$destination"
   assert_file "$destination/manifest.json"
   assert_file "$destination/LICENSE"
-  assert_file "$destination/quickshell/BarWidget.qml"
+  assert_file "$destination/quickshell/Widget.qml"
   assert_file "$destination/quickshell/DataController.qml"
-  assert_file "$destination/quickshell/Panel.qml"
+  assert_file "$destination/quickshell/Popup.qml"
   assert_file "$destination/bin/commitpulse-data"
   [[ -x $destination/bin/commitpulse-data ]] || fail "installed helper is not executable"
   cmp -- "$repository_root/manifest.json" "$destination/manifest.json" || fail "installed manifest differs from source"
@@ -281,12 +281,15 @@ mv "$shell_json.next" "$shell_json"
 mkdir -p -- "$plugins/.dev.commitpulse.backup.20960101T000000Z"
 printf 'fictional collision\n' > "$plugins/.dev.commitpulse.backup.20960101T000000Z/sentinel"
 printf 'fictional shell collision\n' > "$shell_json.commitpulse-backup.20960101T000000Z"
+destination_inode="$(stat -c %i "$plugins/dev.commitpulse")"
 
 run_lifecycle "$home" install watch-destination
 assert_complete_install "$home"
 assert_installed_layout "$home"
 [[ ! -e "$home/.destination-gap-observed" ]] ||
   fail "upgrade made the canonical plugin destination temporarily absent"
+[[ $(stat -c %i "$plugins/dev.commitpulse") == "$destination_inode" ]] ||
+  fail "upgrade replaced the watched plugin directory inode"
 assert_file "$plugins/.dev.commitpulse.backup.20960101T000000Z-1/old-version-marker"
 assert_file "$shell_json.commitpulse-backup.20960101T000000Z-1"
 assert_unrelated_state "$baseline" "$shell_json"

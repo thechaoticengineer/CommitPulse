@@ -54,8 +54,7 @@ operation edits `/usr/share/omarchy`.
 - Go 1.27 or newer to compile the installed data helper. The installer builds
   it locally with `-trimpath`; no generated binary is stored in Git.
 - `jq`, plus the standard `realpath`, `find`, and `mktemp` commands used by the
-  lifecycle scripts. Upgrades require GNU `mv` with atomic `--exchange`
-  support so the live plugin path never becomes temporarily absent.
+  lifecycle scripts.
 - GitHub CLI (`gh`) authenticated as the viewer whose contribution calendar
   should be shown. Run `gh auth login` if needed. The helper delegates
   authentication to `gh`; it never accepts, obtains, prints, or persists a
@@ -92,20 +91,23 @@ The installed tree is self-contained:
 ├── LICENSE
 ├── bin/commitpulse-data
 └── quickshell/
-    ├── BarWidget.qml
+    ├── Widget.qml
     ├── ContributionFixture.js
     ├── ContributionState.js
     ├── DataController.qml
-    └── Panel.qml
+    └── Popup.qml
 ```
 
 Before a lifecycle operation changes an existing `shell.json`, it copies the
 file to `~/.config/omarchy/shell.json.commitpulse-backup.<UTC timestamp>`.
-Replacement and removal move the previous plugin tree to a collision-safe
+An upgrade copies the previous plugin tree, and removal moves it, to a
+collision-safe
 `~/.config/omarchy/plugins/.dev.commitpulse.backup.<UTC timestamp>` path.
-During an upgrade, the validated tree is atomically exchanged with the live
-tree before that old tree is renamed as the backup. This keeps the canonical
-plugin path complete while Omarchy's plugin watcher is active.
+During an upgrade, the installer preserves the watched plugin directory inode
+and atomically replaces each validated file inside it, switching the entry
+point manifest last. This keeps the canonical plugin path complete and the
+running Omarchy watcher attached. The previous complete tree is copied to the
+backup before any installed file changes.
 Backups are retained for manual recovery and are never silently pruned. If an
 activation or verification step fails, the script restores the pre-operation
 plugin and shell configuration and rescans the shell.
@@ -164,7 +166,7 @@ fixture-mode JSON against the schema-v1 contract, Node unit/integration tests,
 QML formatting/parsing, three isolated QML smoke workflows, and the complete
 installer/uninstaller lifecycle in a disposable HOME. The lifecycle suite
 covers install, upgrade, repeat install, removal, repeat removal, backups,
-rollback, atomic destination continuity, malformed configuration, paths
+rollback, watched-directory inode continuity, malformed configuration, paths
 containing spaces, exact preservation of unrelated shell settings, plugin
 validation, and executable fixture output.
 The controller-only runtime smoke stages the compiled Go helper beside the QML plugin, then uses

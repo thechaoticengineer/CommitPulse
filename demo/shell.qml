@@ -95,7 +95,7 @@ ShellRoot {
         WlrLayershell.layer: WlrLayer.Top
         WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
 
-        CommitPulse.BarWidget {
+        CommitPulse.Widget {
             id: widget
             anchors.centerIn: parent
             bar: demoBar

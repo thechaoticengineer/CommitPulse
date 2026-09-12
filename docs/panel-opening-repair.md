@@ -163,3 +163,109 @@ directory `/tmp/commitpulse-stage2.h5HCcQ`:
 | `npm run smoke:panel` | 0 | Real unavailable-data panel opened at 1920 by 1080, closed, reopened, and closed. |
 | `npm run validate` | 0 | Formatting, Go vet/tests/race, helper validation, controller/QML/panel runtime smokes, installer lifecycle, shell syntax, and diff checks passed. |
 | `npm run smoke:live` | 0 | Privacy-safe live helper smoke passed. |
+
+## Stage 3 deployment finding (2026-09-12)
+
+The stage-2 directory exchange kept the canonical path populated, but live
+deployment proved that it did not preserve the running shell's recursive file
+watch. After `./install.sh` returned 0, both `omarchy-shell dev.commitpulse
+toggle` and `omarchy-shell shell summon dev.commitpulse '{}'` returned without
+mapping a panel. The action-correlated journal again reported the installed
+`Panel.qml` as missing even though `stat`, `realpath`, and SHA-256 comparison
+proved that the file was present and readable. A later fresh entry-point URL
+was rejected as `File name case mismatch`, and touching that installed file
+produced no local-plugin watcher event. Supported rescan and disable/enable
+cycles did not recover the detached watcher.
+
+The repository correction now preserves the existing plugin directory inode
+during upgrades. It copies the complete old tree to the normal timestamped
+backup, atomically replaces validated files within the watched directory,
+switches `manifest.json` last, and removes obsolete files only after the new
+entry point is complete. Rollback uses the same inode-preserving sync. The live
+entry points are now `quickshell/Widget.qml` and `quickshell/Popup.qml`, avoiding
+the already-poisoned component URLs without changing the bar, popup content,
+controller, data behavior, or keyboard contract. The lifecycle regression now
+fails if an upgrade changes the destination inode as well as if the path ever
+disappears.
+
+Repository runtime evidence passes: `npm test` reports 29/29, `npm run
+smoke:panel` opens the real unavailable-data popup on-screen, closes it,
+reopens it, and closes it again, and `scripts/lifecycle-test.sh` reports PASS
+with watched-directory inode continuity. The corrected tree is installed and
+its manifest/QML match the repository; `shell.json` is byte-identical to the
+pre-install snapshot with CommitPulse still at `right:1`, unrelated plugin
+catalog entries compare equal, and installer-created backups remain present.
+
+Live-session acceptance initially remained pending because the already-running
+shell retained the detached watcher and poisoned component cache from the
+earlier directory exchanges. All supported hot-reload paths were exhausted, so
+the separately authorized one-time `omarchy restart shell` was required.
+
+## Stage 3 installed-session verification (2026-09-12)
+
+The final repository checks ran before live acceptance, with complete output in
+the private directory `/tmp/commitpulse-stage3-final.rlIrT6`:
+
+| Command | Exit | Result |
+| --- | ---: | --- |
+| `npm run build:helper` | 0 | The Go helper built successfully. |
+| `npm test` | 0 | 29 tests passed, 0 failed. |
+| `npm run validate` | 0 | Go vet/tests/race, helper validation, controller/QML/real-panel smokes, installer lifecycle, shell syntax and diff checks passed. |
+| `npm run smoke:live` | 0 | Privacy-safe live helper smoke passed. |
+
+The corrected tree had already been deployed by the repository installer after
+the preceding successful checks. Immediately before the authorized recovery,
+the installed manifest, QML, license and helper matched the repository,
+`omarchy plugin validate` succeeded, the plugin directory inode was `1215500`,
+CommitPulse was enabled at `right[1]`, and the nine plugin plus fourteen
+`shell.json` installer backups were present. `shell.json` and a normalized
+catalog of all unrelated plugins were saved for post-restart comparison.
+
+Exactly one recovery command was run:
+
+```sh
+omarchy restart shell
+```
+
+It exited 0 and replaced stale shell PID `1393375` with PID `116722`. Once IPC
+was ready, the production lifecycle was exercised with:
+
+```sh
+omarchy-shell shell summon dev.commitpulse '{}'
+hyprctl layers -j | jq '<bounded omarchy-keyboard-panel selection>'
+omarchy-shell shell hide dev.commitpulse
+omarchy-shell dev.commitpulse toggle
+hyprctl layers -j | jq '<bounded omarchy-keyboard-panel selection>'
+wtype -k Escape
+```
+
+The first summon returned `ok` and Hyprland showed exactly one on-screen
+`omarchy-keyboard-panel` surface at 1920 by 1080. The supported hide removed the
+surface, the installed CommitPulse IPC toggle reopened exactly one surface, and
+Escape removed it again. `shell debugBarGeometry` then reported three visible
+monitor-local CommitPulse instances at 74 by 26 in the preserved right section.
+
+For the unavailable-data case, touching the installed `Widget.qml` without
+changing its bytes exercised the repaired stable-directory watcher. The fresh
+shell logged `Local plugin changed, reloading: dev.commitpulse`; all three real
+bar instances unloaded and returned, and an immediate production summon opened
+exactly one positive-size surface before the asynchronous live helper completed.
+The privacy-safe local crop
+`/tmp/commitpulse-stage3-final.rlIrT6/unavailable-panel-evidence-final.png`
+(SHA-256 `4db7da7d0df8ef95f488464dd41e4da0c39d84bb71e11225fbcd473df065c43f`)
+shows the existing panel at its bar anchor with `Loading contributions…` and
+`Waiting for GitHub contribution data.` plus the normal actions; it contains no
+contribution totals or other personal data and is not published. The supported
+hide removed this surface as well. The live helper subsequently returned the
+privacy-safe summary `fresh`, four periods and no error.
+
+Final comparison confirmed the installed tree still matches the repository,
+the plugin directory inode is still `1215500`, `shell.json` is byte-identical,
+CommitPulse is still at `right[1]`, the unrelated plugin catalog is unchanged,
+and all backups remain. The final popup count is zero. The complete Quickshell
+log beginning with the restarted process contains no CommitPulse
+component/import/type/property/binding/path/anchor or Wayland errors. Its unused
+`dev.commitpulse` IPC-handler warnings are the expected extra-monitor duplicates
+also emitted by stock bar panels on each load; shell routing and the retained
+handler both succeeded in the lifecycle above. Task 0 is complete; no redesign
+work was started.

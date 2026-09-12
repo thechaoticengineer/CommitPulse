@@ -62,10 +62,11 @@ only task 0 (repair panel opening) through Forge, including the necessary local
 plugin update and real opening/closing verification. The visual redesign tasks
 remain deferred. Do not restart the disabled watcher or touch ReviewBox.
 
-The user also reports that clicking the installed widget opens no panel at all.
-The tooltip is visible, but panel opening is not working in their session. The
-cause remains unverified; diagnosing and fixing this precedes the visual redesign
-(task 0 in TASKS.md).
+The reported panel-opening defect is repaired and verified in the installed
+Omarchy session. The installer now preserves the watched plugin-directory inode,
+activates the manifest last and uses fresh component URLs; the existing popup
+opens, closes, reopens and opens during unavailable startup data without relevant
+QML errors. The visual redesign remains deferred (tasks 1–5 in TASKS.md).
 
 ## Original delivery order
 

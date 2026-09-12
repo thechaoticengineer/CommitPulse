@@ -3,6 +3,7 @@ import Quickshell
 import Quickshell.Io
 import qs.Commons
 import qs.Ui
+import "." as CommitPulse
 
 // Compact contribution readout for the bar. The nested popup owns its layer
 // surface; this widget remains the host identity that the bar coordinates.
@@ -110,7 +111,9 @@ BarWidget {
     Loader {
         id: panelLoader
         active: true
-        source: Qt.resolvedUrl("Panel.qml")
+        sourceComponent: Component {
+            CommitPulse.Popup {}
+        }
         visible: false
         onLoaded: {
             root.injectPanel();

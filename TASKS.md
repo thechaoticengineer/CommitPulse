@@ -18,9 +18,11 @@ tooltip służy jedynie krótkiej podpowiedzi.
 
 ## 0. Naprawa otwierania istniejącego panelu
 
-Użytkownik potwierdził, że kliknięcie licznika nie otwiera żadnego panelu — widoczny
-jest jedynie tooltip. To zgłoszony problem działania obecnej wersji, niezależny
-od oczekiwanego redesignu. Przyczyna nie została jeszcze ustalona.
+Użytkownik potwierdził, że kliknięcie licznika nie otwierało żadnego panelu — widoczny
+był jedynie tooltip. Problem był niezależny od oczekiwanego redesignu. Przyczyną
+była utrata obserwowanego katalogu pluginu podczas aktualizacji i zatruty adres
+komponentu w długo działającym procesie powłoki; naprawa zachowuje inode katalogu,
+przełącza manifest jako ostatni plik i używa nowych adresów komponentów.
 
 - [x] Odtworzyć kliknięcie na faktycznie zainstalowanym widgetcie w sesji Omarchy.
   Porównać zainstalowane pliki z wersją w repozytorium, zanim zmieni się kod.
@@ -32,7 +34,7 @@ od oczekiwanego redesignu. Przyczyna nie została jeszcze ustalona.
   Czytać ograniczone fragmenty logów; nie zakładać przyczyny bez dowodów.
 - [x] Naprawić potwierdzoną przyczynę i dodać celowany test regresji. Sam test
   helpera Go, poprawność manifestu lub tooltip nie potwierdzają otwierania panelu.
-- [ ] Zweryfikować rzeczywiste otwarcie i zamknięcie panelu z paska oraz ponowne
+- [x] Zweryfikować rzeczywiste otwarcie i zamknięcie panelu z paska oraz ponowne
   otwarcie, w tym bez danych GitHub. Zapisać przyczynę i dowody naprawy.
 
 **Warunek ukończenia:** kliknięcie widgetu rzeczywiście pokazuje panel w Omarchy;

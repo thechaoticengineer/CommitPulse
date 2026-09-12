@@ -8,7 +8,7 @@ import "../quickshell" as CommitPulse
 
 // Isolated compositor-backed harness for the production widget and nested
 // panel. The bar host supplies only the installed BarWidget/KeyboardPanel API;
-// the popup itself is always CommitPulse's real Panel.qml.
+// the popup itself is always CommitPulse's real Popup.qml.
 ShellRoot {
     id: root
 
@@ -109,7 +109,7 @@ ShellRoot {
         WlrLayershell.layer: WlrLayer.Top
         WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
 
-        CommitPulse.BarWidget {
+        CommitPulse.Widget {
             id: widget
             anchors.centerIn: parent
             bar: demoBar

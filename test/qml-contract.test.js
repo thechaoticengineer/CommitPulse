@@ -12,7 +12,6 @@ test("manifest entry point is implemented by the bar widget", () => {
 
   assert.equal(fs.existsSync(entryPoint), true)
   assert.match(readQml("BarWidget.qml"), /moduleName:\s*"dev\.commitpulse"/)
-  assert.match(readQml("BarWidget.qml"), /import\s+"ContributionFixture\.js"\s+as\s+Fixture/)
 })
 
 test("one asynchronous controller is owned by the widget and injected into the popup", () => {
@@ -24,6 +23,10 @@ test("one asynchronous controller is owned by the widget and injected into the p
   assert.match(widget, /target\.dataController = dataController/)
   assert.match(panel, /property var dataController:\s*null/)
   assert.equal((panel.match(/DataController\s*\{/g) || []).length, 0)
+  assert.match(widget, /readonly property var periods:\s*dataController\.periods/)
+  assert.match(panel, /readonly property var periods:\s*dataController \? dataController\.periods : \[\]/)
+  assert.doesNotMatch(widget, /ContributionFixture/)
+  assert.doesNotMatch(panel, /ContributionFixture/)
 
   assert.equal((controller.match(/Process\s*\{/g) || []).length, 1)
   assert.match(controller, /readonly property int defaultRefreshInterval:\s*900000/)
@@ -53,7 +56,7 @@ test("bar widget preserves the installed nested popout lifecycle", () => {
   assert.match(widget, /active:\s*true/)
 })
 
-test("detail popup uses the Panel and KeyboardPanel contract for four fixture totals", () => {
+test("detail popup preserves the Panel and KeyboardPanel lifecycle and focus contract", () => {
   const panel = readQml("Panel.qml")
 
   assert.match(panel, /^Panel\s*\{/m)
@@ -61,9 +64,80 @@ test("detail popup uses the Panel and KeyboardPanel contract for four fixture to
   assert.match(panel, /anchorItem:\s*root\.anchorItem/)
   assert.match(panel, /owner:\s*root\.barIdentity/)
   assert.match(panel, /bar:\s*root\.bar/)
+  assert.match(panel, /focusTarget:\s*keyCatcher/)
   assert.match(panel, /onCloseRequested:\s*root\.close\(\)/)
-  assert.match(panel, /model:\s*root\.periods/)
+  assert.match(panel, /onMoveRequested:\s*function \(dx, dy\)/)
+  assert.match(panel, /onActivateRequested:\s*root\.activateSelectedAction\(\)/)
+  assert.match(panel, /onTabRequested:\s*function \(direction\)/)
+  assert.match(panel, /root\.switchPanel\(direction\)/)
+  assert.match(panel, /model:\s*root\.hasTotals \? root\.periods : \[\]/)
   assert.match(panel, /text:\s*periodRow\.modelData\.label/)
   assert.match(panel, /text:\s*periodRow\.modelData\.total \+ " contributions"/)
-  assert.doesNotMatch(panel, /#[0-9a-fA-F]{3,8}\b/)
+})
+
+test("live UI exposes four truthful counters and every required presentation", () => {
+  const widget = readQml("BarWidget.qml")
+  const panel = readQml("Panel.qml")
+  const state = readQml("ContributionState.js")
+
+  for (const label of ["Today", "Week", "Month", "Year"]) {
+    assert.equal(state.includes(`"${label}"`), true, `missing live period label: ${label}`)
+  }
+  for (const presentation of [
+    "Loading contributions…",
+    "Refreshing contributions…",
+    "Up to date",
+    "Stale · ",
+    "Authentication required",
+    "Rate limited",
+    "Offline",
+    "Unavailable",
+    "Refresh failed",
+  ]) {
+    assert.equal(panel.includes(presentation), true, `missing UI presentation: ${presentation}`)
+  }
+
+  assert.match(widget, /todayPeriod:\s*hasTotals \? periods\[0\] : null/)
+  assert.match(widget, /todayValue:\s*todayPeriod && typeof todayPeriod\.total === "number"/)
+  assert.match(widget, /horizontalSummary:\s*todayValue !== "" \? todayValue/)
+  assert.match(widget, /verticalValue:\s*todayValue !== "" \? todayValue/)
+  assert.doesNotMatch(widget, /total:\s*0/)
+  assert.doesNotMatch(widget, /\?\s*0\b|:\s*0\b/)
+  assert.match(panel, /showingStaleTotals/)
+  assert.match(panel, /Showing (?:the last successful|saved) totals/)
+  assert.match(panel, /readonly property string lastUpdatedText:/)
+  assert.match(panel, /Updated just now/)
+  assert.match(panel, /formatTimestamp/)
+})
+
+test("popup actions use native controls, guarded refresh, and a fixed safe profile target", () => {
+  const panel = readQml("Panel.qml")
+
+  assert.equal((panel.match(/\bButton\s*\{/g) || []).length, 2)
+  assert.match(panel, /enabled:\s*dataController \? dataController\.canRefresh : false/)
+  assert.match(panel, /if \(!dataController \|\| !dataController\.canRefresh\)/)
+  assert.match(panel, /return dataController\.refresh\(\)/)
+  assert.match(panel, /readonly property string githubProfileTarget:\s*"https:\/\/github\.com\/"/)
+  assert.match(panel, /return String\(target \|\| ""\) === githubProfileTarget/)
+  assert.match(panel, /if \(!isTrustedProfileTarget\(candidate\)\)\s*return false/)
+  assert.match(panel, /Qt\.openUrlExternally\(candidate\)/)
+  assert.match(panel, /hasCursor:\s*root\.selectedAction === 0/)
+  assert.match(panel, /onTextKey:\s*function \(text\)/)
+  assert.doesNotMatch(panel, /Process\s*\{|Quickshell\.Io|\b(?:exec|spawn|run)\s*\(/)
+  assert.doesNotMatch(panel, /https?:\/\/(?!github\.com\/)/)
+})
+
+test("live surfaces use native Omarchy styling without a hard-coded palette", () => {
+  const widget = readQml("BarWidget.qml")
+  const panel = readQml("Panel.qml")
+
+  for (const qml of [widget, panel]) {
+    assert.match(qml, /\bStyle\./)
+    assert.match(qml, /\bColor\./)
+    assert.doesNotMatch(qml, /#[0-9a-fA-F]{3,8}\b/)
+  }
+  assert.match(widget, /Style\.bar\.iconSlot/)
+  assert.match(widget, /root\.vertical/)
+  assert.match(panel, /Style\.space\(/)
+  assert.match(panel, /\bButton\s*\{/)
 })

@@ -3,7 +3,6 @@ import Quickshell
 import Quickshell.Io
 import qs.Commons
 import qs.Ui
-import "ContributionFixture.js" as Fixture
 
 // Compact contribution readout for the bar. The nested popup owns its layer
 // surface; this widget remains the host identity that the bar coordinates.
@@ -11,12 +10,41 @@ BarWidget {
     id: root
     moduleName: "dev.commitpulse"
 
-    readonly property var periods: Fixture.fixturePeriods()
-    readonly property var todayPeriod: periods.length > 0 ? periods[0] : ({
-            label: "Today",
-            total: 0
-        })
-    readonly property string horizontalSummary: todayPeriod.total + " contributions"
+    readonly property var periods: dataController.periods
+    readonly property bool hasTotals: dataController.hasTotals
+    readonly property var todayPeriod: hasTotals ? periods[0] : null
+    readonly property string todayValue: todayPeriod && typeof todayPeriod.total === "number" ? String(todayPeriod.total) : ""
+    readonly property string availabilityLabel: {
+        if (dataController.loading || dataController.state === "loading")
+            return "Loading…";
+        if (dataController.errorCategory === "authentication")
+            return "Sign in";
+        if (dataController.errorCategory === "rate-limit")
+            return "Rate limited";
+        if (dataController.state === "error")
+            return "Refresh failed";
+        return "Unavailable";
+    }
+    readonly property string dataQualifier: {
+        if (dataController.loading)
+            return " · refreshing";
+        if (dataController.stale)
+            return " · stale";
+        return "";
+    }
+    readonly property string horizontalSummary: todayValue !== "" ? todayValue + " today" + dataQualifier : availabilityLabel
+    readonly property string verticalValue: todayValue !== "" ? todayValue : (dataController.loading || dataController.state === "loading" ? "…" : "—")
+    readonly property string verticalLabel: hasTotals ? (dataController.stale ? "STALE" : "TODAY") : (dataController.loading || dataController.state === "loading" ? "LOAD" : "N/A")
+    readonly property string detailTooltip: {
+        if (todayValue === "")
+            return availabilityLabel + "\nOpen contribution details";
+        var detail = "Today: " + todayValue + " contributions";
+        if (dataController.loading)
+            detail += " (refreshing)";
+        else if (dataController.stale)
+            detail += " (stale)";
+        return detail + "\nOpen contribution details";
+    }
 
     // Shape contract for the host's panel routing.
     readonly property bool opened: panelLoader.item ? panelLoader.item.opened === true : false
@@ -74,7 +102,7 @@ BarWidget {
     onSettingsChanged: injectPanel()
 
     // One controller belongs to the long-lived widget and is shared with its
-    // eager popup. The UI remains fixture-bound until the next planned stage.
+    // eager popup. Neither UI surface launches the helper independently.
     DataController {
         id: dataController
     }
@@ -122,7 +150,7 @@ BarWidget {
         horizontalMargin: 8
         verticalPadding: 6
         fixedHeight: root.vertical ? Style.bar.iconSlot * 2 : -1
-        tooltipText: root.todayPeriod.label + ": " + root.todayPeriod.total + " contributions\nOpen contribution totals"
+        tooltipText: root.detailTooltip
 
         onPressed: function (mouseButton) {
             if (mouseButton === Qt.LeftButton)
@@ -138,7 +166,7 @@ BarWidget {
                 width: parent.width
                 textFormat: Text.PlainText
                 horizontalAlignment: Text.AlignHCenter
-                text: String(root.todayPeriod.total)
+                text: root.verticalValue
                 color: button.active ? button.activeColor : button.foreground
                 font.family: button.fontFamily
                 font.pixelSize: Style.font.body
@@ -149,7 +177,7 @@ BarWidget {
                 width: parent.width
                 textFormat: Text.PlainText
                 horizontalAlignment: Text.AlignHCenter
-                text: root.todayPeriod.label.toUpperCase()
+                text: root.verticalLabel
                 color: button.active ? button.activeColor : button.foreground
                 font.family: button.fontFamily
                 font.pixelSize: Style.font.caption

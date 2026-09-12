@@ -6,12 +6,12 @@ See [PRODUCT.md](PRODUCT.md) for the accepted requirements and delivery order.
 
 ## Status
 
-Increments 1 and 2, plus the live-integration controller stage of increment 3,
-are implemented. The repository contains a schema-version 1
-Omarchy bar-widget manifest, a deterministic fictional model, and a themed
-Quickshell widget with an anchored detail popup. The UI still displays only the
-fictional fixture pending the next stage, but its long-lived widget now owns one
-shared asynchronous data controller and injects it into the popup.
+Increments 1 and 2, plus the controller and live-UI stages of increment 3, are
+implemented. The repository contains a schema-version 1 Omarchy bar-widget
+manifest, a deterministic fictional model, and a themed Quickshell widget with
+an anchored detail popup. Its long-lived widget owns one shared asynchronous
+data controller and injects it into the popup; neither surface starts a second
+helper.
 
 The compiled Go helper under `cmd/commitpulse-data` implements aggregation,
 authenticated GitHub GraphQL fetching through `gh`, secure XDG caching, stale
@@ -23,11 +23,21 @@ failed fetch either preserves the last successful totals as `stale` or emits
 The controller launches that helper directly through Quickshell's asynchronous
 `Process` API, performs strict schema-v1 validation, retains the last complete
 four-period snapshot through unavailable or invalid results, refreshes every
-15 minutes, and provides one guarded manual refresh method. It exposes
-freshness, sanitized error categories, timestamps, retry metadata, visibility,
-and observable process-state counters for the next UI-wiring stage. The popup's
-live state presentation and actions, installer/uninstaller, and changes to the
-live Omarchy setup remain later work. Nothing in the current validation flow
+15 minutes, and provides one guarded manual refresh method. The compact bar
+shows the live Today count when one is available and uses explicit loading or
+unavailable text otherwise. The popup shows all four live totals, a
+human-readable last-updated indication, and distinct loading, refreshing,
+stale, authentication, rate-limit, offline, general-error, and unavailable
+presentations. Its Refresh action is disabled while a request is active or a
+validated `retryAt` deadline is in the future.
+
+The profile action validates and opens only the fixed `https://github.com/`
+target through Qt's native URL launcher. GitHub therefore resolves the action
+for the browser's authenticated account without CommitPulse querying, logging,
+or persisting account identity. The schema-v1 privacy boundary intentionally
+contains no login or profile URL, so this increment cannot construct a direct
+account-specific URL. Installer/uninstaller work and changes to the live
+Omarchy setup remain later work. Nothing in the current validation flow
 installs or enables the plugin, reads live plugin configuration, or edits
 `/usr/share/omarchy`.
 
@@ -135,10 +145,10 @@ See your GitHub contribution counts at a glance while working in Omarchy.
 
 ## Planned later increments
 
-- Bind the widget and popup to the shared controller, including manual refresh
-  controls and visible loading, freshness, timestamp, and error states.
-- Add the profile action and idempotent installer/uninstaller, then validate the
-  installed plugin in the user's live Omarchy shell.
+- Extend isolated live-UI scenario coverage and integration documentation to
+  complete increment 3 validation.
+- Add an idempotent installer/uninstaller, then validate the installed plugin
+  in the user's live Omarchy shell.
 
 ## Related project
 

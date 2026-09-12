@@ -27,9 +27,20 @@ skipped and completes only its deterministic static checks. Use `npm run demo`
 for the same isolated preview without the bounded exit, then close it or press
 Ctrl-C when finished.
 
-GitHub access, the compiled Go helper, live refresh and cache behavior, and
-installation remain planned work. No credentials, fetched contribution data, or
-runtime state is included in this repository.
+Increment 2, stage 1 is implemented: `cmd/commitpulse-data` and its
+standard-library Go module define schema version 1 of the data-helper JSON
+contract and strictly aggregate GitHub calendar day labels into Today, Week,
+Month, and Year totals. It defaults to the host-local timezone or accepts an
+explicit IANA timezone, uses Monday-based weeks, handles year-crossing weeks,
+leap days, and DST-aware query bounds, and rejects incomplete or malformed
+calendar input rather than inventing zero totals. The command currently emits a
+structured unavailable result because GitHub fetching and cache storage are
+later stages. See [the helper contract](docs/data-helper-contract.md) and run
+`go test ./...` for its deterministic Go tests.
+
+GitHub fetching, XDG cache behavior, live refresh and installation remain
+planned work. No credentials, fetched contribution data, or runtime state is
+included in this repository.
 
 ## Goal
 
@@ -37,8 +48,8 @@ See your GitHub contribution counts at a glance while working in Omarchy.
 
 ## Planned later increments
 
-- Fetch GitHub contributions through a compiled Go helper using `gh` auth.
-- Add asynchronous refresh, stale/offline handling, and XDG cache storage.
+- Fetch GitHub contributions through the compiled Go helper using `gh` auth.
+- Add XDG cache storage, stale/offline handling, and retry behavior.
 - Provide a profile action and idempotent installer and uninstaller.
 
 ## Decisions for implementation

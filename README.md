@@ -7,15 +7,17 @@ See [PRODUCT.md](PRODUCT.md) for the accepted requirements and delivery order.
 ## Status
 
 Increment 1 is implemented: the repository contains a schemaVersion 1
-Omarchy bar-widget manifest and a Qt-free, deterministic fixture model under
+Omarchy bar-widget manifest, a Qt-free deterministic fixture model, and a
+compact themed Quickshell widget with an anchored detail popup under
 `quickshell/`. The fictional fixture exposes Today, Week, Month, and Year
-contribution totals in that order. Run `npm test` to validate the manifest
-boundary, fixture shape, labels, totals, and stable summary formatting.
+contribution totals in that order; the popup shows all four totals and the bar
+shows today's concise summary. Run `npm test` to validate the manifest,
+fixture model, and QML host-contract coverage.
 
-The themed QML bar widget and detail popup are the next increment. GitHub
-access, the compiled Go helper, live refresh and cache behavior, and installer
-integration remain planned work. No personal contribution data, credentials,
-or runtime state is included in this repository.
+GitHub access, the compiled Go helper, live refresh and cache behavior, an
+isolated runtime smoke command, and installer integration remain planned work.
+No personal contribution data, credentials, or runtime state is included in
+this repository.
 
 ## Goal
 
@@ -23,10 +25,10 @@ See your GitHub contribution counts at a glance while working in Omarchy.
 
 ## Planned later increments
 
-- Build the compact themed QML widget and detail popup.
 - Fetch GitHub contributions through a compiled Go helper using `gh` auth.
 - Add asynchronous refresh, stale/offline handling, and XDG cache storage.
-- Provide a profile action plus an idempotent installer and uninstaller.
+- Provide a profile action, isolated runtime smoke workflow, and idempotent
+  installer and uninstaller.
 
 ## Decisions for implementation
 

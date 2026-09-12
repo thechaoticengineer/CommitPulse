@@ -4,7 +4,7 @@
   "private": true,
   "description": "Fixture model checks for the CommitPulse Omarchy plugin.",
   "scripts": {
-    "test": "node --test test/fixture-model.test.js"
+    "test": "node --test test/*.test.js"
   },
   "engines": {
     "node": ">=18"

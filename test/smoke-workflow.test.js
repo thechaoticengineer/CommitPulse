@@ -1,5 +1,8 @@
 const assert = require("node:assert/strict")
+const { spawn, spawnSync } = require("node:child_process")
+const { once } = require("node:events")
 const fs = require("node:fs")
+const os = require("node:os")
 const path = require("node:path")
 const test = require("node:test")
 
@@ -17,6 +20,7 @@ test("demo root instantiates the widget and opens its popup", () => {
   assert.match(demo, /panel\.statusTitle !== "Stale · Authentication required"/)
   assert.match(demo, /panel\.statusTitle !== "Loading contributions…"/)
   assert.match(demo, /panel\.statusTitle !== "Refreshing contributions…"/)
+  assert.match(demo, /COMMITPULSE_SMOKE_STARTUP_LOADING: observed/)
   assert.match(demo, /panel\.refreshContributions\(\)/)
   assert.match(demo, /panel\.dataController\.maximumActiveProcesses !== 1/)
   assert.match(demo, /Qt\.quit\(\)/)
@@ -39,6 +43,8 @@ test("smoke workflow isolates XDG state and has a documented static fallback", (
     "runtime skipped",
     "timeout --foreground --kill-after=2s 15s",
     "COMMITPULSE_SCENARIO_STATE=$scenario_state",
+    "COMMITPULSE_SCENARIO_GATE=$startup_gate",
+    "COMMITPULSE_SMOKE_STARTUP_LOADING: observed",
     "staged_plugin",
     "runtime_bin/commitpulse-data",
     "COMMITPULSE_SMOKE_READY: fresh stale auth malformed manual maximum active 1",
@@ -96,6 +102,8 @@ test("controller smoke runs the compiled helper fixture with isolated state", ()
     "XDG_RUNTIME_DIR=$smoke_root/runtime",
     "COMMITPULSE_TEST_HELPER=$smoke_root/scenario-helper",
     "COMMITPULSE_SCENARIO_STATE=$scenario_state",
+    "WAYLAND_DISPLAY",
+    "active Wayland socket",
     "staged_plugin",
     "stage_root/bin/commitpulse-data",
     "fresh stale auth malformed manual startup maximum active 1",
@@ -103,8 +111,21 @@ test("controller smoke runs the compiled helper fixture with isolated state", ()
     assert.equal(smoke.includes(required), true, `missing controller-smoke safeguard: ${required}`)
   }
   assert.equal(packageFile.scripts["smoke:controller"], "./scripts/controller-smoke.sh")
+  assert.doesNotMatch(smoke, /QT_QPA_PLATFORM=offscreen/)
   assert.doesNotMatch(smoke, /\.config\/omarchy\/shell\.json/)
   assert.doesNotMatch(smoke, /plugins\/dev\.commitpulse/)
+})
+
+test("controller smoke honestly skips without a display backend", () => {
+  const result = spawnSync("bash", [path.join(repositoryRoot, "scripts/controller-smoke.sh")], {
+    cwd: repositoryRoot,
+    encoding: "utf8",
+    env: { ...process.env, DISPLAY: "", WAYLAND_DISPLAY: "", XDG_RUNTIME_DIR: "" },
+    timeout: 5000,
+  })
+
+  assert.equal(result.status, 0, result.stderr)
+  assert.match(result.stdout, /CommitPulse controller smoke: SKIP; (?:quickshell is unavailable|an active Wayland socket .* is required)\./)
 })
 
 test("scenario helper contains only fictional bounded integration states", () => {
@@ -113,10 +134,45 @@ test("scenario helper contains only fictional bounded integration states", () =>
   for (const state of ['"state":"fresh"', '"state":"stale"', '"state":"unavailable"', '"kind":"authentication"', "fictional malformed output"]) {
     assert.equal(driver.includes(state), true, `missing scenario-helper state: ${state}`)
   }
-  for (const guard of ["COMMITPULSE_SCENARIO_STATE", "flock", "maximum-active", "invocation-count"]) {
+  for (const guard of ["COMMITPULSE_SCENARIO_STATE", "COMMITPULSE_SCENARIO_GATE", "flock", "maximum-active", "invocation-count"]) {
     assert.equal(driver.includes(guard), true, `missing scenario-helper guard: ${guard}`)
   }
   assert.doesNotMatch(driver, /\bgh\b|api\.github|login|profileUrl|\.config\/omarchy/)
+})
+
+test("scenario helper gates the first result until startup loading is observed", async t => {
+  const scenarioRoot = fs.mkdtempSync(path.join(os.tmpdir(), "commitpulse-gate-test."))
+  const gate = path.join(scenarioRoot, "startup-observed")
+
+  const child = spawn(path.join(repositoryRoot, "test/scenario-helper.sh"), [], {
+    env: {
+      ...process.env,
+      COMMITPULSE_SCENARIO_STATE: scenarioRoot,
+      COMMITPULSE_SCENARIO_GATE: gate,
+      COMMITPULSE_SCENARIO_DELAY: "0",
+    },
+    stdio: ["ignore", "pipe", "pipe"],
+  })
+  t.after(() => {
+    if (child.exitCode === null)
+      child.kill("SIGTERM")
+    fs.rmSync(scenarioRoot, { recursive: true, force: true })
+  })
+  let stdout = ""
+  let stderr = ""
+  child.stdout.setEncoding("utf8")
+  child.stderr.setEncoding("utf8")
+  child.stdout.on("data", chunk => { stdout += chunk })
+  child.stderr.on("data", chunk => { stderr += chunk })
+
+  await new Promise(resolve => setTimeout(resolve, 100))
+  assert.equal(child.exitCode, null, "helper exited before the observation gate opened")
+  assert.equal(stdout, "", "helper emitted a result before the observation gate opened")
+
+  fs.writeFileSync(gate, "")
+  const [exitCode] = await once(child, "exit")
+  assert.equal(exitCode, 0, stderr)
+  assert.match(stdout, /"state":"fresh"/)
 })
 
 test("live smoke bounds requests and suppresses authenticated output", () => {

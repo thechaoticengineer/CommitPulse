@@ -12,6 +12,10 @@ if ! command -v flock > /dev/null 2>&1; then
   printf 'CommitPulse controller smoke: SKIP; flock is unavailable.\n'
   exit 0
 fi
+if [[ -z "${WAYLAND_DISPLAY:-}" || -z "${XDG_RUNTIME_DIR:-}" || ! -S "$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY" ]]; then
+  printf 'CommitPulse controller smoke: SKIP; an active Wayland socket (WAYLAND_DISPLAY and XDG_RUNTIME_DIR) is required.\n'
+  exit 0
+fi
 
 smoke_root="$(mktemp -d "${TMPDIR:-/tmp}/commitpulse-controller.XXXXXX")"
 diagnostics="$smoke_root/quickshell.log"
@@ -28,6 +32,7 @@ stage_root="$smoke_root/staged_plugin"
 scenario_state="$smoke_root/scenario-state"
 mkdir -p "$smoke_root/home" "$smoke_root/config" "$smoke_root/cache" "$smoke_root/state" "$smoke_root/data" "$smoke_root/runtime" "$scenario_state" "$stage_root/bin" "$stage_root/test" "$stage_root/quickshell"
 chmod 700 "$smoke_root/home" "$smoke_root/config" "$smoke_root/cache" "$smoke_root/state" "$smoke_root/data" "$smoke_root/runtime" "$scenario_state"
+ln -s "$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY" "$smoke_root/runtime/$WAYLAND_DISPLAY"
 go build -trimpath -o "$stage_root/bin/commitpulse-data" "$repository_root/cmd/commitpulse-data"
 cp "$repository_root/manifest.json" "$stage_root/manifest.json"
 cp "$repository_root/test/controller-shell.qml" "$stage_root/test/ControllerShell.qml"
@@ -46,7 +51,7 @@ runtime_environment=(
   "XDG_RUNTIME_DIR=$smoke_root/runtime"
   "COMMITPULSE_TEST_HELPER=$smoke_root/scenario-helper"
   "COMMITPULSE_SCENARIO_STATE=$scenario_state"
-  "QT_QPA_PLATFORM=offscreen"
+  "WAYLAND_DISPLAY=$WAYLAND_DISPLAY"
   "NO_COLOR=1"
 )
 

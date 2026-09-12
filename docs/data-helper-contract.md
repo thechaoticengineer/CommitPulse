@@ -202,11 +202,11 @@ test input. It contains no fetched account data or real-account timestamps.
 
 `npm run validate` checks Go formatting and vetting, all Go tests, supported Go
 race tests, a disposable helper build, the embedded fixture-mode contract, Node
-unit/integration tests, QML formatting/parsing, and isolated headless and Wayland
-runtime smokes. Those smokes stage the compiled helper beside copied plugin
-sources under private temporary HOME/XDG trees, use only fictional scenario
-output, assert startup/manual refresh and overlap prevention, and delete all
-captured output. The Wayland runtime portion reports a documented skip when
+unit/integration tests, QML formatting/parsing, and isolated controller-only and
+visual Wayland runtime smokes. Those smokes stage the compiled helper beside
+copied plugin sources under private temporary HOME/XDG trees, use only fictional
+scenario output, assert startup/manual refresh and overlap prevention, and delete
+all captured output. Both runtime smokes report a documented skip when
 Quickshell or an active Wayland socket is unavailable. `npm run smoke:live`
 performs the opt-in live path with one request attempt and disposable cache
 state; it suppresses captured helper/API content and reports only PASS, SKIP, or

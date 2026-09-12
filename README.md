@@ -58,7 +58,7 @@ installs or enables the plugin, reads live plugin configuration, or edits
   helper delegates authentication to `gh`; it never accepts, obtains, prints,
   or persists a token.
 - Qt 6 `qmlformat` and Quickshell for controller/runtime checks. An active
-  Wayland socket is optional for the isolated visual smoke portion.
+  Wayland socket is optional; runtime checks report a skip when one is absent.
 
 ## Build and validation
 
@@ -71,22 +71,23 @@ npm run validate
 That one command checks `gofmt`, `go vet`, all Go tests, Go race tests on
 supported Linux targets, a reproducible temporary helper build, deterministic
 fixture-mode JSON against the schema-v1 contract, Node unit/integration tests,
-QML formatting/parsing, and two isolated QML smoke workflows. The headless
-controller smoke stages the compiled Go helper beside the QML plugin, then uses
+QML formatting/parsing, and two isolated QML smoke workflows. The controller-only
+runtime smoke stages the compiled Go helper beside the QML plugin, then uses
 an explicit executable test override to drive fictional fresh, stale,
 unavailable/authentication, and malformed-output attempts. It exercises startup
 and manual paths, retained non-zero totals, non-zero exits, and a maximum of one
 active process. The visual smoke stages the same complete tree and checks the
 actual bar and popup presentations against those scenarios when Quickshell and
-an active Wayland socket are available; otherwise it reports an honest runtime
-skip after static checks. Both QML smokes use private temporary `HOME` and XDG
+an active Wayland socket are available. Both runtime smokes report an honest
+skip when that display backend is unavailable; the visual workflow still runs
+its static checks first. Both QML smokes use private temporary `HOME` and XDG
 trees, remove captured output, and never examine the real plugin directory.
 Validation also rejects tracked credentials, cache/runtime artifacts, binaries,
 and logs, checks fixture scripts with `bash -n`, and runs `git diff --check`.
 
 `npm run build:helper` writes the helper binary to ignored
 `bin/commitpulse-data`, matching the controller's repository/runtime discovery
-path. `npm run smoke:controller` runs the headless asynchronous scenario check,
+path. `npm run smoke:controller` runs the controller-only asynchronous scenario check,
 `npm run smoke` runs the fixture-backed isolated visual check,
 and `npm run demo` leaves that isolated preview open until closed. None of these
 commands installs the plugin or touches live Omarchy configuration.

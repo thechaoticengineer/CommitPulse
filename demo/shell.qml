@@ -116,7 +116,10 @@ ShellRoot {
                 if (root.phase === 0) {
                     if (widget.horizontalSummary !== "Loading…" || panel.statusTitle !== "Loading contributions…")
                         return root.fail("initial loading state was not rendered");
-                    root.sawInitialLoading = true;
+                    if (!root.sawInitialLoading) {
+                        root.sawInitialLoading = true;
+                        console.log("COMMITPULSE_SMOKE_STARTUP_LOADING: observed");
+                    }
                 } else if (root.phase === 1) {
                     if (widget.horizontalSummary !== "7 today · refreshing" || panel.statusTitle !== "Refreshing contributions…")
                         return root.fail("refreshing state did not retain the fresh counters");

@@ -7,6 +7,7 @@ set -euo pipefail
 # below the disposable smoke tree supplied by the caller.
 state_root="${COMMITPULSE_SCENARIO_STATE:?COMMITPULSE_SCENARIO_STATE is required}"
 delay="${COMMITPULSE_SCENARIO_DELAY:-0.12}"
+startup_gate="${COMMITPULSE_SCENARIO_GATE:-}"
 
 case "$state_root" in
   /*) ;;
@@ -58,6 +59,22 @@ release_slot() {
   flock -u 9
 }
 trap release_slot EXIT INT TERM
+
+# The visual smoke supplies this optional gate for its first request. The helper
+# stays observably active until QML has rendered and reported the loading state;
+# only a file inside the disposable scenario tree may release it.
+if [[ "$invocation" == "1" && -n "$startup_gate" ]]; then
+  case "$startup_gate" in
+    "$state_root"/*) ;;
+    *) exit 64 ;;
+  esac
+
+  for ((attempt = 0; attempt < 1000; attempt++)); do
+    [[ -e "$startup_gate" ]] && break
+    sleep 0.01
+  done
+  [[ -e "$startup_gate" ]] || exit 70
+fi
 
 sleep "$delay"
 

@@ -51,7 +51,12 @@ fi
 
 smoke_root="$(mktemp -d "${TMPDIR:-/tmp}/commitpulse-smoke.XXXXXX")"
 diagnostics="$smoke_root/quickshell.log"
+gate_releaser_pid=""
 cleanup() {
+  if [[ -n "$gate_releaser_pid" ]]; then
+    kill "$gate_releaser_pid" > /dev/null 2>&1 || true
+    wait "$gate_releaser_pid" > /dev/null 2>&1 || true
+  fi
   case "$smoke_root" in
     "${TMPDIR:-/tmp}"/commitpulse-smoke.*) rm -rf -- "$smoke_root" ;;
   esac
@@ -64,6 +69,7 @@ runtime_demo="$stage_root/demo"
 runtime_quickshell="$stage_root/quickshell"
 runtime_bin="$stage_root/bin"
 scenario_state="$smoke_root/scenario-state"
+startup_gate="$scenario_state/startup-loading-observed"
 runtime_dir="$smoke_root/runtime"
 mkdir -p "$smoke_root/home" "$smoke_root/config" "$smoke_root/cache" "$smoke_root/state" "$smoke_root/data" "$scenario_state" "$runtime_dir" "$runtime_demo" "$runtime_quickshell" "$runtime_bin"
 chmod 700 "$smoke_root/home" "$smoke_root/config" "$smoke_root/cache" "$smoke_root/state" "$smoke_root/data" "$scenario_state" "$runtime_dir"
@@ -106,9 +112,26 @@ runtime_environment=(
   "NO_COLOR=1"
   "COMMITPULSE_TEST_HELPER=$smoke_root/scenario-helper"
   "COMMITPULSE_SCENARIO_STATE=$scenario_state"
+  "COMMITPULSE_SCENARIO_GATE=$startup_gate"
 )
 
 go build -trimpath -o "$runtime_bin/commitpulse-data" "$repository_root/cmd/commitpulse-data"
+
+# The first deterministic helper request waits on startup_gate. Release it only
+# after the loaded widget/popup has positively reported its loading presentation,
+# so even very fast machines cannot finish the request before QML observes it.
+release_startup_gate() {
+  for ((attempt = 0; attempt < 1000; attempt++)); do
+    if grep -Fq 'COMMITPULSE_SMOKE_STARTUP_LOADING: observed' "$diagnostics" 2> /dev/null; then
+      : > "$startup_gate"
+      return 0
+    fi
+    sleep 0.01
+  done
+  return 1
+}
+release_startup_gate &
+gate_releaser_pid=$!
 
 if [[ "$interactive" -eq 1 ]]; then
   runtime_environment+=("COMMITPULSE_SMOKE_INTERACTIVE=1")
@@ -124,6 +147,14 @@ else
     exit 1
   fi
 fi
+
+if ! wait "$gate_releaser_pid" || [[ ! -e "$startup_gate" ]]; then
+  gate_releaser_pid=""
+  sed -n '1,200p' "$diagnostics" >&2
+  printf 'CommitPulse smoke: startup loading handshake was not completed.\n' >&2
+  exit 1
+fi
+gate_releaser_pid=""
 
 if ! grep -Fq 'COMMITPULSE_SMOKE_READY: fresh stale auth malformed manual maximum active 1' "$diagnostics"; then
   sed -n '1,200p' "$diagnostics" >&2

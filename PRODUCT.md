@@ -39,7 +39,35 @@ Forge plugin in /home/ithilsen/Projects/Forge/manifest.json and quickshell/.
   validation, and verify loading through the actual shell. Keep installation a
   separate explicit command for other users.
 
-## Delivery order
+## Visual direction for the next iteration
+
+The user clarified the desired appearance after seeing the initial widget:
+use the existing Omarchy Codex usage panel as the visual reference. The desired
+experience is a substantial dark statistics panel with clear section headings,
+separators, aligned values and horizontal activity bars, using the system's
+monospace typography and theme. A small text counter/tooltip alone does not meet
+this visual expectation.
+
+Show the day/week/month/year contribution summary prominently. A daily activity
+breakdown with horizontal bars would adapt the reference's "tokens by day" layout
+to GitHub contributions; this is a proposed layout for the next implementation.
+Use real daily data for charts, and label any relative scale honestly rather than
+inventing quotas or targets. Keep the compact bar entry as the panel launcher.
+
+This is a recorded design clarification, not an implemented redesign. The user
+has taken over further work and asked to stop automatic supervision.
+
+The proposed task list is in [TASKS.md](TASKS.md). The user has authorized running
+only task 0 (repair panel opening) through Forge, including the necessary local
+plugin update and real opening/closing verification. The visual redesign tasks
+remain deferred. Do not restart the disabled watcher or touch ReviewBox.
+
+The user also reports that clicking the installed widget opens no panel at all.
+The tooltip is visible, but panel opening is not working in their session. The
+cause remains unverified; diagnosing and fixing this precedes the visual redesign
+(task 0 in TASKS.md).
+
+## Original delivery order
 
 1. Quickshell plugin skeleton with a fixture-backed bar widget and detail popup.
 2. GitHub contribution fetching, calendar aggregation, cache and error handling.

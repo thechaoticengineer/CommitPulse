@@ -45,9 +45,10 @@ fi
 node scripts/validate-helper-output.mjs --fixture "$validation_root/fixture.json"
 
 bash -n install.sh uninstall.sh scripts/lifecycle.sh
-bash -n test/scenario-helper.sh scripts/controller-smoke.sh scripts/qml-smoke.sh scripts/live-smoke.sh scripts/lifecycle-test.sh scripts/validate.sh
+bash -n test/scenario-helper.sh scripts/controller-smoke.sh scripts/qml-smoke.sh scripts/panel-lifecycle-smoke.sh scripts/live-smoke.sh scripts/lifecycle-test.sh scripts/validate.sh
 npm run smoke:controller
 npm run smoke
+npm run smoke:panel
 ./scripts/lifecycle-test.sh
 
 tracked_runtime="$(git ls-files -- '.env' '.env.*' '.commitpulse/**' 'bin/**' 'dist/**' '**/commitpulse-data' '**/success-v1.json' '**/retry-v1.json' '**/cache.lock' '**/.commitpulse-*.tmp' '**/invocation-count' '**/active-count' '**/maximum-active' '*.log')"

@@ -114,3 +114,52 @@ redirected to that private evidence directory:
 The lifecycle suite's deliberately injected malformed-input, build, validation,
 rescan, and enable failures appear in its log and are expected assertions; the
 suite itself and aggregate validation both report `PASS`.
+
+## Stage 2 fix and regression (2026-09-12)
+
+The confirmed failure was corrected at the installer boundary. An upgrade now
+uses GNU `mv --exchange --no-target-directory` to atomically swap the validated
+transfer tree with the existing plugin directory. The canonical
+`~/.config/omarchy/plugins/dev.commitpulse` path therefore always contains a
+complete tree while the shell watcher is active. The exchanged old tree is then
+moved to the existing timestamped backup path. Upgrade rollback also exchanges
+the restored tree into place without temporarily removing the canonical path.
+Fresh installs retain their existing atomic rename into an absent destination.
+
+No QML content, data controller, helper, error-state behavior, profile target,
+IPC identity, or keyboard behavior changed. No plugin was installed during this
+stage.
+
+### Targeted regressions
+
+`scripts/lifecycle-test.sh` now places a selective `mv` observer around an
+upgrade and fails if the canonical destination is absent after any filesystem
+transition. Against the diagnosed two-rename implementation it exited 1 with
+`upgrade made the canonical plugin destination temporarily absent`. With the
+atomic exchange it passes while retaining the old complete tree in the expected
+collision-safe backup.
+
+`scripts/panel-lifecycle-smoke.sh` starts an isolated Quickshell instance on the
+active Wayland compositor. It loads the repository's real `BarWidget.qml` and
+eager `Panel.qml` against `/usr/share/omarchy/shell`'s `qs.Commons` and `qs.Ui`
+modules. The harness invokes the registered production
+`WidgetButton.triggerPress(Qt.LeftButton)` path, not a replacement panel. It
+asserts Loader Ready, the real panel identity, non-null controller, a positive
+anchor attached to a window, unavailable contribution data, and matching opened
+and controller states. Hyprland then confirms exactly one
+`omarchy-keyboard-panel` surface owned by that Quickshell process, with positive
+dimensions contained by its output. The production `dev.commitpulse close` IPC
+must unmap it; the click path must reopen the same real surface; a final close
+must unmap it again. Relevant component/import/type/property/binding/path,
+anchor, and Wayland errors fail the test.
+
+The final stage-2 checks passed with complete output retained in the private
+directory `/tmp/commitpulse-stage2.h5HCcQ`:
+
+| Command | Exit | Result |
+| --- | ---: | --- |
+| `npm run build:helper` | 0 | Go helper build passed. |
+| `npm test` | 0 | Node contract and state tests passed. |
+| `npm run smoke:panel` | 0 | Real unavailable-data panel opened at 1920 by 1080, closed, reopened, and closed. |
+| `npm run validate` | 0 | Formatting, Go vet/tests/race, helper validation, controller/QML/panel runtime smokes, installer lifecycle, shell syntax, and diff checks passed. |
+| `npm run smoke:live` | 0 | Privacy-safe live helper smoke passed. |

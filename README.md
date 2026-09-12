@@ -54,7 +54,8 @@ operation edits `/usr/share/omarchy`.
 - Go 1.27 or newer to compile the installed data helper. The installer builds
   it locally with `-trimpath`; no generated binary is stored in Git.
 - `jq`, plus the standard `realpath`, `find`, and `mktemp` commands used by the
-  lifecycle scripts.
+  lifecycle scripts. Upgrades require GNU `mv` with atomic `--exchange`
+  support so the live plugin path never becomes temporarily absent.
 - GitHub CLI (`gh`) authenticated as the viewer whose contribution calendar
   should be shown. Run `gh auth login` if needed. The helper delegates
   authentication to `gh`; it never accepts, obtains, prints, or persists a
@@ -102,6 +103,9 @@ Before a lifecycle operation changes an existing `shell.json`, it copies the
 file to `~/.config/omarchy/shell.json.commitpulse-backup.<UTC timestamp>`.
 Replacement and removal move the previous plugin tree to a collision-safe
 `~/.config/omarchy/plugins/.dev.commitpulse.backup.<UTC timestamp>` path.
+During an upgrade, the validated tree is atomically exchanged with the live
+tree before that old tree is renamed as the backup. This keeps the canonical
+plugin path complete while Omarchy's plugin watcher is active.
 Backups are retained for manual recovery and are never silently pruned. If an
 activation or verification step fails, the script restores the pre-operation
 plugin and shell configuration and rescans the shell.
@@ -157,21 +161,26 @@ npm run validate
 That one command checks `gofmt`, `go vet`, all Go tests, Go race tests on
 supported Linux targets, a reproducible temporary helper build, deterministic
 fixture-mode JSON against the schema-v1 contract, Node unit/integration tests,
-QML formatting/parsing, two isolated QML smoke workflows, and the complete
+QML formatting/parsing, three isolated QML smoke workflows, and the complete
 installer/uninstaller lifecycle in a disposable HOME. The lifecycle suite
 covers install, upgrade, repeat install, removal, repeat removal, backups,
-rollback, malformed configuration, paths containing spaces, exact preservation
-of unrelated shell settings, plugin validation, and executable fixture output.
+rollback, atomic destination continuity, malformed configuration, paths
+containing spaces, exact preservation of unrelated shell settings, plugin
+validation, and executable fixture output.
 The controller-only runtime smoke stages the compiled Go helper beside the QML plugin, then uses
 an explicit executable test override to drive fictional fresh, stale,
 unavailable/authentication, and malformed-output attempts. It exercises startup
 and manual paths, retained non-zero totals, non-zero exits, and a maximum of one
 active process. The visual smoke stages the same complete tree and checks the
 actual bar and popup presentations against those scenarios when Quickshell and
-an active Wayland socket are available. Both runtime smokes report an honest
-skip when that display backend is unavailable; the visual workflow still runs
-its static checks first. Both QML smokes use private temporary `HOME` and XDG
-trees, remove captured output, and never examine the real plugin directory.
+an active Wayland socket are available. The panel lifecycle smoke loads the
+real widget and panel against the installed Omarchy APIs, opens through the
+registered left-click action with unavailable data, verifies the positive-size
+on-screen Hyprland surface, closes it through production IPC, and reopens it.
+That acceptance smoke requires an active Wayland/Hyprland session and fails
+clearly if one is unavailable; the general visual workflow still reports an
+honest runtime skip after its static checks. All QML smokes use private
+temporary `HOME` and XDG trees and never examine the real plugin directory.
 Validation also rejects tracked credentials, cache/runtime artifacts, binaries,
 and logs, checks fixture scripts with `bash -n`, and runs `git diff --check`.
 
@@ -179,6 +188,7 @@ and logs, checks fixture scripts with `bash -n`, and runs `git diff --check`.
 `bin/commitpulse-data`, matching the controller's repository/runtime discovery
 path. `npm run smoke:controller` runs the controller-only asynchronous scenario check,
 `npm run smoke` runs the fixture-backed isolated visual check,
+`npm run smoke:panel` runs the real compositor-backed panel lifecycle check,
 and `npm run demo` leaves that isolated preview open until closed. None of these
 commands installs the plugin or touches live Omarchy configuration; only the
 explicit lifecycle scripts do so.

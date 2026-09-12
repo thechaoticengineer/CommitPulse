@@ -22,15 +22,15 @@ Użytkownik potwierdził, że kliknięcie licznika nie otwiera żadnego panelu �
 jest jedynie tooltip. To zgłoszony problem działania obecnej wersji, niezależny
 od oczekiwanego redesignu. Przyczyna nie została jeszcze ustalona.
 
-- [ ] Odtworzyć kliknięcie na faktycznie zainstalowanym widgetcie w sesji Omarchy.
+- [x] Odtworzyć kliknięcie na faktycznie zainstalowanym widgetcie w sesji Omarchy.
   Porównać zainstalowane pliki z wersją w repozytorium, zanim zmieni się kod.
-- [ ] Prześledzić obsługę kliknięcia w BarWidget.qml, togglePanel(), panelLoader,
+- [x] Prześledzić obsługę kliknięcia w BarWidget.qml, togglePanel(), panelLoader,
   inicjalizację Panel.qml, kontroler widoczności i kotwiczenie. Sprawdzić właściwy
   kontrakt panelu/IPC w zainstalowanej wersji Omarchy.
-- [ ] Sprawdzić błędy Quickshell/QML w chwili kliknięcia: nieudane ładowanie,
+- [x] Sprawdzić błędy Quickshell/QML w chwili kliknięcia: nieudane ładowanie,
   brakujące właściwości/importy, niewidoczne okno lub nieprawidłową pozycję.
   Czytać ograniczone fragmenty logów; nie zakładać przyczyny bez dowodów.
-- [ ] Naprawić potwierdzoną przyczynę i dodać celowany test regresji. Sam test
+- [x] Naprawić potwierdzoną przyczynę i dodać celowany test regresji. Sam test
   helpera Go, poprawność manifestu lub tooltip nie potwierdzają otwierania panelu.
 - [ ] Zweryfikować rzeczywiste otwarcie i zamknięcie panelu z paska oraz ponowne
   otwarcie, w tym bez danych GitHub. Zapisać przyczynę i dowody naprawy.

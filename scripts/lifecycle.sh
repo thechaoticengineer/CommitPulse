@@ -25,6 +25,11 @@ commitpulse_require_command() {
   command -v "$1" >/dev/null 2>&1 || commitpulse_fail "required command not found: $1"
 }
 
+commitpulse_require_atomic_exchange() {
+  mv --help 2>&1 | grep -Fq -- '--exchange' ||
+    commitpulse_fail "mv does not support the atomic --exchange operation"
+}
+
 commitpulse_reject_arguments() {
   local command_name="$1"
   shift
@@ -453,9 +458,11 @@ commitpulse_restore_plugin() {
     cp -a -- "$COMMITPULSE_PLUGIN_BACKUP/." "$restore_stage/"
     chmod --reference="$COMMITPULSE_PLUGIN_BACKUP" "$restore_stage"
     if [[ -e $COMMITPULSE_DESTINATION ]]; then
-      rm -rf -- "$COMMITPULSE_DESTINATION"
+      mv --exchange --no-target-directory -- "$restore_stage" "$COMMITPULSE_DESTINATION"
+      rm -rf -- "$restore_stage"
+    else
+      mv -- "$restore_stage" "$COMMITPULSE_DESTINATION"
     fi
-    mv -- "$restore_stage" "$COMMITPULSE_DESTINATION"
   elif [[ -e $COMMITPULSE_DESTINATION ]]; then
     rm -rf -- "$COMMITPULSE_DESTINATION"
   fi
@@ -501,9 +508,10 @@ commitpulse_install() {
     return 1
   fi
   umask 077
-  for command_name in go jq omarchy realpath find mktemp; do
+  for command_name in go jq omarchy realpath find mktemp mv grep; do
     commitpulse_require_command "$command_name"
   done
+  commitpulse_require_atomic_exchange
   commitpulse_resolve_user_root
 
   preparation_root="$(mktemp -d "${TMPDIR:-/tmp}/commitpulse-install.XXXXXX")"
@@ -533,10 +541,15 @@ commitpulse_install() {
   COMMITPULSE_PLUGIN_BACKUP=""
   COMMITPULSE_MUTATED=1
   if [[ -e $COMMITPULSE_DESTINATION ]]; then
-    COMMITPULSE_PLUGIN_BACKUP="$(commitpulse_new_backup_path "$COMMITPULSE_PLUGINS_DIR/.$COMMITPULSE_PLUGIN_ID.backup")"
-    mv -- "$COMMITPULSE_DESTINATION" "$COMMITPULSE_PLUGIN_BACKUP"
+    local backup_path
+    backup_path="$(commitpulse_new_backup_path "$COMMITPULSE_PLUGINS_DIR/.$COMMITPULSE_PLUGIN_ID.backup")"
+    mv --exchange --no-target-directory -- "$transfer_stage" "$COMMITPULSE_DESTINATION"
+    COMMITPULSE_PLUGIN_BACKUP="$transfer_stage"
+    mv -- "$transfer_stage" "$backup_path"
+    COMMITPULSE_PLUGIN_BACKUP="$backup_path"
+  else
+    mv -- "$transfer_stage" "$COMMITPULSE_DESTINATION"
   fi
-  mv -- "$transfer_stage" "$COMMITPULSE_DESTINATION"
   COMMITPULSE_TRANSFER_STAGE=""
 
   if (( COMMITPULSE_SHELL_EXISTED )); then

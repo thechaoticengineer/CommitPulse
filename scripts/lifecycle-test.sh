@@ -12,6 +12,7 @@ original_path="$PATH"
 real_validator="$(command -v omarchy-plugin-validate || true)"
 real_go="$(command -v go)"
 real_date="$(command -v date)"
+real_mv="$(command -v mv)"
 
 [[ -n $real_validator ]] || {
   printf 'CommitPulse lifecycle test: installed omarchy-plugin-validate is required.\n' >&2
@@ -163,6 +164,7 @@ run_lifecycle() {
     COMMITPULSE_REAL_VALIDATE="$real_validator" \
     COMMITPULSE_REAL_GO="$real_go" \
     COMMITPULSE_REAL_DATE="$real_date" \
+    COMMITPULSE_REAL_MV="$real_mv" \
     PATH="$stub_dir:$original_path" \
     bash "$repository_root/$action.sh"
 }
@@ -244,6 +246,7 @@ create_test_stubs() {
 
   write_test_stub "$stub_dir/date" '#!/usr/bin/env bash' 'if [[ ${1:-} == "-u" && ${2:-} == "+%Y%m%dT%H%M%SZ" ]]; then printf "%s\n" "20960101T000000Z"; else exec "$COMMITPULSE_REAL_DATE" "$@"; fi'
   write_test_stub "$stub_dir/go" '#!/usr/bin/env bash' 'if [[ ${COMMITPULSE_TEST_FAIL:-} == build && ${1:-} == build ]]; then echo "fictional build failure" >&2; exit 77; fi' 'exec "$COMMITPULSE_REAL_GO" "$@"'
+  write_test_stub "$stub_dir/mv" '#!/usr/bin/env bash' 'set -Eeuo pipefail' '"$COMMITPULSE_REAL_MV" "$@"' 'destination="$COMMITPULSE_TEST_ROOT/.config/omarchy/plugins/dev.commitpulse"' 'if [[ ${COMMITPULSE_TEST_FAIL:-} == watch-destination && ! -e $destination ]]; then : > "$COMMITPULSE_TEST_ROOT/.destination-gap-observed"; fi'
   write_test_stub "$stub_dir/omarchy" '#!/usr/bin/env bash' 'set -Eeuo pipefail' 'fail() { printf "omarchy stub: %s\n" "$*" >&2; exit 1; }' 'home=${COMMITPULSE_TEST_ROOT:?}' 'shell_json="$home/.config/omarchy/shell.json"' 'destination="$home/.config/omarchy/plugins/dev.commitpulse"' 'id=dev.commitpulse' 'case "${1:-}:${2:-}:${3:-}" in' '  plugin:validate:*) [[ ${COMMITPULSE_TEST_FAIL:-} != validate ]] || fail "fictional validation failure"; shift 2; exec "$COMMITPULSE_REAL_VALIDATE" "$@" ;;' '  shell:shell:rescanPlugins)' '    [[ ${COMMITPULSE_TEST_FAIL:-} != rescan ]] || fail "fictional rescan failure"' '    if [[ ${COMMITPULSE_TEST_FAIL:-} == rescan-once && ! -e $home/.rescan-failed-once ]]; then : > "$home/.rescan-failed-once"; fail "omarchy-shell is not responding"; fi' '    printf "ok\n" ;;' '  shell:shell:listPlugins)' '    if [[ ${COMMITPULSE_TEST_FAIL:-} == list-once && ! -e $home/.list-failed-once ]]; then : > "$home/.list-failed-once"; fail "omarchy-shell is not responding"; fi' '    if [[ -d $destination && ! -L $destination ]]; then' "      jq -cn --arg id \"\$id\" '[{id: \$id, kinds: [\"bar-widget\"], enabled: true}]'" '    else printf "[]\n"; fi ;;' '  plugin:enable:dev.commitpulse)' '    [[ ${4:-} == --section && ${5:-} == right && $# == 5 ]] || fail "unexpected enable arguments"' '    [[ ${COMMITPULSE_TEST_FAIL:-} != enable ]] || fail "fictional enable failure"' '    if [[ ${COMMITPULSE_TEST_FAIL:-} == enable-once && ! -e $home/.enable-failed-once ]]; then : > "$home/.enable-failed-once"; fail "omarchy-shell is not responding"; fi' '    jq --arg id "$id" -f "$COMMITPULSE_STUB_ENABLE_FILTER" "$shell_json" > "$shell_json.stub"' '    mv "$shell_json.stub" "$shell_json"' '    printf "Enabled %s\n" "$id" ;;' '  plugin:disable:dev.commitpulse)' '    [[ $# == 3 ]] || fail "unexpected disable arguments"' '    jq --arg id "$id" -f "$COMMITPULSE_STUB_DISABLE_FILTER" "$shell_json" > "$shell_json.stub"' '    mv "$shell_json.stub" "$shell_json"' '    printf "Disabled %s\n" "$id" ;;' '  *) fail "unexpected exact Omarchy API: $*" ;;' 'esac'
 
   export COMMITPULSE_STUB_LIST_FILTER="$filter_dir/list-enabled.jq"
@@ -279,9 +282,11 @@ mkdir -p -- "$plugins/.dev.commitpulse.backup.20960101T000000Z"
 printf 'fictional collision\n' > "$plugins/.dev.commitpulse.backup.20960101T000000Z/sentinel"
 printf 'fictional shell collision\n' > "$shell_json.commitpulse-backup.20960101T000000Z"
 
-run_lifecycle "$home" install
+run_lifecycle "$home" install watch-destination
 assert_complete_install "$home"
 assert_installed_layout "$home"
+[[ ! -e "$home/.destination-gap-observed" ]] ||
+  fail "upgrade made the canonical plugin destination temporarily absent"
 assert_file "$plugins/.dev.commitpulse.backup.20960101T000000Z-1/old-version-marker"
 assert_file "$shell_json.commitpulse-backup.20960101T000000Z-1"
 assert_unrelated_state "$baseline" "$shell_json"

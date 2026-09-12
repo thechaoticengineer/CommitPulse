@@ -23,3 +23,8 @@ commitpulse-smoke.*/
 bin/
 dist/
 coverage.out
+
+# Keep the read-only Codex review-sandbox mount point while ignoring all
+# provider-generated agent state.
+.agents/*
+!.agents/.gitkeep

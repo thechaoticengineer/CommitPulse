@@ -40,3 +40,11 @@ test("smoke workflow isolates XDG state and has a documented static fallback", (
   assert.doesNotMatch(smoke, /\.config\/omarchy\/shell\.json/)
   assert.doesNotMatch(smoke, /plugins\/dev\.commitpulse/)
 })
+
+test("read-only reviews have a tracked, state-free agent mount point", () => {
+  const ignore = read(".gitignore")
+
+  assert.equal(fs.existsSync(path.join(repositoryRoot, ".agents", ".gitkeep")), true)
+  assert.match(ignore, /\.agents\/\*/)
+  assert.match(ignore, /!\.agents\/\.gitkeep/)
+})

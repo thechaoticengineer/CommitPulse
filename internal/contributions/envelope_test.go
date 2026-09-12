@@ -55,7 +55,7 @@ func TestEnvelopeValidationRejectsPartialAndMisleadingStates(t *testing.T) {
 		State:             StateUnavailable,
 		EffectiveTimezone: "UTC",
 		Periods:           &partial,
-		Visibility:        Visibility{PrivateContributions: visibilityUnknown},
+		Visibility:        Visibility{PrivateContributions: VisibilityUnknown},
 		Error:             &ContractError{Kind: ErrorKindOffline, Message: "The contribution service is unavailable."},
 	}
 	if err := ValidateEnvelope(invalid); err == nil {
@@ -69,7 +69,7 @@ func TestEnvelopeValidationRejectsPartialAndMisleadingStates(t *testing.T) {
 		Periods:           &partial,
 		AttemptedAt:       &now,
 		LastUpdated:       &now,
-		Visibility:        Visibility{PrivateContributions: visibilityUnknown},
+		Visibility:        Visibility{PrivateContributions: VisibilityUnknown},
 		Error:             &ContractError{Kind: ErrorKindOffline, Message: "The contribution service is unavailable."},
 	}
 	if err := ValidateEnvelope(stale); err == nil {

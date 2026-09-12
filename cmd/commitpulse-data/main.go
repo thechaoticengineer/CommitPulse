@@ -1,11 +1,12 @@
 // commitpulse-data is the repository-owned contribution-data helper.
-// Fetching and caching are intentionally added in later delivery stages.
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/thechaoticengineer/commitpulse/internal/contributions"
 )
@@ -26,24 +27,52 @@ func main() {
 		os.Exit(2)
 	}
 
-	_, effectiveTimezone, err := contributions.ResolveLocation(timezone)
+	now := time.Now()
+	bounds, err := contributions.BoundsFor(now, timezone)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(2)
 	}
-	envelope, err := contributions.UnavailableEnvelope(
-		effectiveTimezone,
-		nil,
-		nil,
-		contributions.ErrorKindNotImplemented,
-		"GitHub contribution fetching is not available in this build.",
-	)
+	client, err := contributions.NewGitHubClient(nil, nil, nil, contributions.FetchOptions{})
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(os.Stderr, "failed to initialize contribution fetch")
+		os.Exit(1)
+	}
+	attemptedAt := now.UTC()
+	fetched, fetchErr := client.Fetch(context.Background(), bounds)
+	var envelope contributions.Envelope
+	if fetchErr != nil {
+		envelope, err = contributions.UnavailableEnvelope(
+			bounds.EffectiveTimezone,
+			&attemptedAt,
+			fetchErr.RetryAt,
+			fetchErr.Kind,
+			fetchErr.Message,
+		)
+	} else {
+		aggregation, aggregateErr := contributions.Aggregate(now, timezone, fetched.Days)
+		if aggregateErr != nil {
+			envelope, err = contributions.UnavailableEnvelope(
+				bounds.EffectiveTimezone,
+				&attemptedAt,
+				nil,
+				contributions.ErrorKindMalformedResponse,
+				"GitHub returned an invalid response.",
+			)
+		} else {
+			updatedAt := time.Now().UTC()
+			envelope, err = contributions.FreshEnvelopeWithVisibility(aggregation, attemptedAt, updatedAt, fetched.Visibility)
+		}
+	}
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "failed to create helper output")
 		os.Exit(1)
 	}
 	if err := contributions.WriteEnvelope(os.Stdout, envelope); err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(os.Stderr, "failed to write helper output")
+		os.Exit(1)
+	}
+	if fetchErr != nil || envelope.State == contributions.StateUnavailable {
 		os.Exit(1)
 	}
 }

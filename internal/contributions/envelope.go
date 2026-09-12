@@ -24,14 +24,17 @@ const (
 type ErrorKind string
 
 const (
-	ErrorKindAuthentication  ErrorKind = "authentication"
-	ErrorKindOffline         ErrorKind = "offline"
-	ErrorKindRateLimit       ErrorKind = "rate_limit"
-	ErrorKindAPI             ErrorKind = "api"
-	ErrorKindMalformedData   ErrorKind = "malformed_data"
-	ErrorKindInvalidTimezone ErrorKind = "invalid_timezone"
-	ErrorKindInternal        ErrorKind = "internal"
-	ErrorKindNotImplemented  ErrorKind = "not_implemented"
+	ErrorKindMissingGH         ErrorKind = "missing_gh"
+	ErrorKindAuthentication    ErrorKind = "authentication"
+	ErrorKindOffline           ErrorKind = "offline"
+	ErrorKindTimeout           ErrorKind = "timeout"
+	ErrorKindRateLimit         ErrorKind = "rate_limit"
+	ErrorKindAPI               ErrorKind = "api"
+	ErrorKindMalformedResponse ErrorKind = "malformed_response"
+	ErrorKindMalformedData     ErrorKind = "malformed_data"
+	ErrorKindInvalidTimezone   ErrorKind = "invalid_timezone"
+	ErrorKindInternal          ErrorKind = "internal"
+	ErrorKindNotImplemented    ErrorKind = "not_implemented"
 )
 
 // Visibility records what the helper knows about private/internal contribution
@@ -40,7 +43,10 @@ type Visibility struct {
 	PrivateContributions string `json:"privateContributions"`
 }
 
-const visibilityUnknown = "unknown"
+const (
+	VisibilityUnknown  = "unknown"
+	VisibilityIncluded = "included"
+)
 
 // ContractError is the optional sanitized failure detail in the JSON envelope.
 type ContractError struct {
@@ -65,6 +71,18 @@ type Envelope struct {
 // FreshEnvelope wraps a successful aggregation. Both update times are required
 // because a fresh response has just completed a successful attempt.
 func FreshEnvelope(aggregation Aggregation, attemptedAt, lastUpdated time.Time) (Envelope, error) {
+	return FreshEnvelopeWithVisibility(
+		aggregation,
+		attemptedAt,
+		lastUpdated,
+		Visibility{PrivateContributions: VisibilityUnknown},
+	)
+}
+
+// FreshEnvelopeWithVisibility wraps a successful aggregation with the
+// visibility metadata returned by GitHub. Account identifiers are deliberately
+// not part of the stdout contract.
+func FreshEnvelopeWithVisibility(aggregation Aggregation, attemptedAt, lastUpdated time.Time, visibility Visibility) (Envelope, error) {
 	periods := append([]Period(nil), aggregation.Periods...)
 	envelope := Envelope{
 		SchemaVersion:     SchemaVersion,
@@ -73,7 +91,7 @@ func FreshEnvelope(aggregation Aggregation, attemptedAt, lastUpdated time.Time) 
 		Periods:           &periods,
 		AttemptedAt:       timePointer(attemptedAt),
 		LastUpdated:       timePointer(lastUpdated),
-		Visibility:        Visibility{PrivateContributions: visibilityUnknown},
+		Visibility:        visibility,
 	}
 	return envelope, ValidateEnvelope(envelope)
 }
@@ -90,7 +108,7 @@ func StaleEnvelope(aggregation Aggregation, attemptedAt, lastUpdated time.Time, 
 		AttemptedAt:       timePointer(attemptedAt),
 		LastUpdated:       timePointer(lastUpdated),
 		RetryAt:           copyTimePointer(retryAt),
-		Visibility:        Visibility{PrivateContributions: visibilityUnknown},
+		Visibility:        Visibility{PrivateContributions: VisibilityUnknown},
 		Error:             &ContractError{Kind: kind, Message: message},
 	}
 	return envelope, ValidateEnvelope(envelope)
@@ -104,7 +122,7 @@ func UnavailableEnvelope(effectiveTimezone string, attemptedAt, retryAt *time.Ti
 		EffectiveTimezone: effectiveTimezone,
 		AttemptedAt:       copyTimePointer(attemptedAt),
 		RetryAt:           copyTimePointer(retryAt),
-		Visibility:        Visibility{PrivateContributions: visibilityUnknown},
+		Visibility:        Visibility{PrivateContributions: VisibilityUnknown},
 		Error:             &ContractError{Kind: kind, Message: message},
 	}
 	return envelope, ValidateEnvelope(envelope)
@@ -119,7 +137,8 @@ func ValidateEnvelope(envelope Envelope) error {
 	if envelope.EffectiveTimezone == "" {
 		return malformed("the output does not identify an effective timezone")
 	}
-	if envelope.Visibility.PrivateContributions == "" {
+	if envelope.Visibility.PrivateContributions != VisibilityUnknown &&
+		envelope.Visibility.PrivateContributions != VisibilityIncluded {
 		return malformed("the output does not include visibility metadata")
 	}
 	if envelope.Error != nil && (envelope.Error.Kind == "" || envelope.Error.Message == "") {

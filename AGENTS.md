@@ -8,7 +8,8 @@ Use Codex for every agent role, including planning, architecture, implementation
 review and recovery. Do not invoke Claude or fall back to another provider.
 
 Use the installed Omarchy skill and its plugins.md guide when working on shell
-integration. Quickshell/QML is required. Read packaged shell examples but never
+integration. Quickshell/QML for the UI and Go for the data helper are required.
+Do not implement a Python backend. Read packaged shell examples but never
 edit /usr/share/omarchy. Preserve existing user configuration and unrelated plugins.
 
 Work through the current Forge task only, preserving working increments and

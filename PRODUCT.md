@@ -16,8 +16,9 @@ Forge plugin in /home/ithilsen/Projects/Forge/manifest.json and quickshell/.
 - A plugin manifest, compact bar widget, and a detail popup showing all four
   clearly labeled totals. Follow shell colors, fonts and sizing.
 - Fetch the authenticated user's GitHub contribution calendar through the
-  installed gh CLI. A small Python standard-library helper may handle API calls,
-  calendar aggregation and cache serialization; the UI must remain QML.
+  installed gh CLI. Use a small Go helper for API calls, calendar aggregation
+  and cache serialization, preferably relying on the Go standard library.
+  Distribute it as a compiled binary; the UI must remain Quickshell/QML.
 - Count GitHub contributions rather than claiming contributions are commits only.
   Document the API's date semantics and private-contribution visibility. Monday
   starts the week; current month/year start on their calendar boundaries. Handle

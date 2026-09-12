@@ -9,6 +9,7 @@ See [PRODUCT.md](PRODUCT.md) for the accepted requirements and delivery order.
 Project initialized. This repository currently contains the project brief and
 license; the widget is not implemented yet. It will use the installed Omarchy
 shell plugin API with a QML bar widget and detail popup.
+The data helper will be written in Go and use the existing gh authentication.
 
 ## Goal
 

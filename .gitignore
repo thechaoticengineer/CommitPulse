@@ -13,3 +13,10 @@ Thumbs.db
 
 # Local logs
 *.log
+
+# Forge runtime and local contribution cache
+.forge/
+.commitpulse/
+__pycache__/
+.venv/
+*.pyc

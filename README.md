@@ -1,12 +1,14 @@
 # CommitPulse
 
-A small Omarchy widget for your GitHub contribution activity.
+A native Quickshell/QML Omarchy widget for your GitHub contribution activity.
+
+See [PRODUCT.md](PRODUCT.md) for the accepted requirements and delivery order.
 
 ## Status
 
 Project initialized. This repository currently contains the project brief and
-license; the widget is not implemented yet. Desktop integration and the
-technology stack will be chosen during the next development step.
+license; the widget is not implemented yet. It will use the installed Omarchy
+shell plugin API with a QML bar widget and detail popup.
 
 ## Goal
 
@@ -22,9 +24,9 @@ See your GitHub contribution counts at a glance while working in Omarchy.
 
 ## Decisions for implementation
 
-- Choose the desktop placement and integration supported by the target Omarchy setup.
-- Define the metric precisely: GitHub contributions or commits only.
-- Define timezone behavior and the start of the week.
+- Refine placement within the installed Omarchy Quickshell bar.
+- Preserve the agreed GitHub contributions metric and explain its API semantics.
+- Align timezone behavior with API dates; weeks start on Monday.
 - Choose authentication, refresh frequency, and local caching.
 - Define how private contribution counts should be represented.
 

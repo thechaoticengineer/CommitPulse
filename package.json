@@ -4,7 +4,9 @@
   "private": true,
   "description": "Fixture model checks for the CommitPulse Omarchy plugin.",
   "scripts": {
-    "test": "node --test test/*.test.js"
+    "test": "node --test test/*.test.js",
+    "smoke": "./scripts/qml-smoke.sh",
+    "demo": "./scripts/qml-smoke.sh --interactive"
   },
   "engines": {
     "node": ">=18"

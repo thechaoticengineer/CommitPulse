@@ -8,6 +8,7 @@
     "validate": "./scripts/validate.sh",
     "test": "node --test test/*.test.js",
     "smoke": "./scripts/qml-smoke.sh",
+    "smoke:controller": "./scripts/controller-smoke.sh",
     "smoke:live": "./scripts/live-smoke.sh",
     "demo": "./scripts/qml-smoke.sh --interactive"
   },

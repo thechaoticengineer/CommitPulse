@@ -3,9 +3,10 @@
 `cmd/commitpulse-data` is the repository-owned Go command that will supply
 contribution data to the QML layer. It now fetches the authenticated viewer's
 calendar through the installed GitHub CLI, validates and aggregates the
-response, and writes the stable JSON contract below. Cache storage and stale
-fallback, deterministic validation, and the bounded live smoke are implemented;
-refresh scheduling and QML live-data wiring are later increments.
+response, and writes the stable JSON contract below. Cache storage, stale
+fallback, deterministic validation, the bounded live smoke, and asynchronous
+QML controller consumption are implemented. Binding the widget's presentation
+and controls to that controller remains a later stage.
 
 The helper invokes exactly one read-only `gh api graphql` request when the first
 attempt succeeds. It relies on `gh`'s existing authentication, never accepts or

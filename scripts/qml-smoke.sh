@@ -27,6 +27,7 @@ static_check() {
   (cd "$repository_root" && npm test)
   /usr/lib/qt6/bin/qmlformat "$repository_root/demo/shell.qml" > /dev/null
   /usr/lib/qt6/bin/qmlformat "$repository_root/quickshell/BarWidget.qml" > /dev/null
+  /usr/lib/qt6/bin/qmlformat "$repository_root/quickshell/DataController.qml" > /dev/null
   /usr/lib/qt6/bin/qmlformat "$repository_root/quickshell/Panel.qml" > /dev/null
 }
 
@@ -59,8 +60,10 @@ mkdir -p "$smoke_root/home" "$smoke_root/config" "$smoke_root/cache" "$smoke_roo
 # Omarchy APIs. The real user plugin directory is never considered.
 cp "$repository_root/demo/shell.qml" "$runtime_demo/DemoRoot.qml"
 cp "$repository_root/quickshell/BarWidget.qml" "$runtime_quickshell/BarWidget.qml"
+cp "$repository_root/quickshell/DataController.qml" "$runtime_quickshell/DataController.qml"
 cp "$repository_root/quickshell/Panel.qml" "$runtime_quickshell/Panel.qml"
 cp "$repository_root/quickshell/ContributionFixture.js" "$runtime_quickshell/ContributionFixture.js"
+cp "$repository_root/quickshell/ContributionState.js" "$runtime_quickshell/ContributionState.js"
 printf '%s\n' 'import "demo" as Demo' 'Demo.DemoRoot {}' > "$smoke_root/shell.qml"
 for import_parent in "$runtime_demo" "$runtime_quickshell"; do
   ln -s /usr/share/omarchy/shell/Commons "$import_parent/Commons"
@@ -79,7 +82,11 @@ runtime_environment=(
   "QML2_IMPORT_PATH=$smoke_root:/usr/share/omarchy/shell:/usr/lib/qt6/qml"
   "QML_IMPORT_PATH=$smoke_root:/usr/share/omarchy/shell:/usr/lib/qt6/qml"
   "NO_COLOR=1"
+  "COMMITPULSE_TEST_HELPER=$smoke_root/commitpulse-data"
+  "COMMITPULSE_TEST_FIXTURE=1"
 )
+
+go build -trimpath -o "$smoke_root/commitpulse-data" "$repository_root/cmd/commitpulse-data"
 
 if [[ "$interactive" -eq 1 ]]; then
   runtime_environment+=("COMMITPULSE_SMOKE_INTERACTIVE=1")

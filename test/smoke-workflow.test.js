@@ -6,7 +6,7 @@ const test = require("node:test")
 const repositoryRoot = path.resolve(__dirname, "..")
 const read = file => fs.readFileSync(path.join(repositoryRoot, file), "utf8")
 
-test("demo root instantiates the fixture-backed widget and opens its popup", () => {
+test("demo root instantiates the widget and opens its popup", () => {
   const demo = read("demo/shell.qml")
 
   assert.match(demo, /^ShellRoot\s*\{/m)
@@ -62,6 +62,7 @@ test("aggregate validation covers the helper and preserves existing QML smoke ch
     "PATH=/nonexistent XDG_CACHE_HOME=\"$validation_root/cache\"",
     "commitpulse-data\" -fixture",
     "validate-helper-output.mjs --fixture",
+    "npm run smoke:controller",
     "npm run smoke",
     "git diff --check",
   ]) {
@@ -69,6 +70,28 @@ test("aggregate validation covers the helper and preserves existing QML smoke ch
   }
   assert.equal(packageFile.scripts.validate, "./scripts/validate.sh")
   assert.match(packageFile.scripts["build:helper"], /bin\/commitpulse-data/)
+})
+
+test("controller smoke runs the compiled helper fixture with isolated state", () => {
+  const smoke = read("scripts/controller-smoke.sh")
+  const packageFile = JSON.parse(read("package.json"))
+
+  for (const required of [
+    "mktemp -d",
+    "go build -trimpath",
+    "HOME=$smoke_root/home",
+    "XDG_CONFIG_HOME=$smoke_root/config",
+    "XDG_CACHE_HOME=$smoke_root/cache",
+    "XDG_STATE_HOME=$smoke_root/state",
+    "COMMITPULSE_TEST_HELPER=$smoke_root/commitpulse-data",
+    "COMMITPULSE_TEST_FIXTURE=1",
+    "maximum active 1",
+  ]) {
+    assert.equal(smoke.includes(required), true, `missing controller-smoke safeguard: ${required}`)
+  }
+  assert.equal(packageFile.scripts["smoke:controller"], "./scripts/controller-smoke.sh")
+  assert.doesNotMatch(smoke, /\.config\/omarchy\/shell\.json/)
+  assert.doesNotMatch(smoke, /plugins\/dev\.commitpulse/)
 })
 
 test("live smoke bounds requests and suppresses authenticated output", () => {

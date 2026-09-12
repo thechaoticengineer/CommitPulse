@@ -6,10 +6,12 @@ See [PRODUCT.md](PRODUCT.md) for the accepted requirements and delivery order.
 
 ## Status
 
-Increments 1 and 2 are implemented. The repository contains a schema-version 1
+Increments 1 and 2, plus the live-integration controller stage of increment 3,
+are implemented. The repository contains a schema-version 1
 Omarchy bar-widget manifest, a deterministic fictional model, and a themed
 Quickshell widget with an anchored detail popup. The UI still displays only the
-fictional fixture.
+fictional fixture pending the next stage, but its long-lived widget now owns one
+shared asynchronous data controller and injects it into the popup.
 
 The compiled Go helper under `cmd/commitpulse-data` implements aggregation,
 authenticated GitHub GraphQL fetching through `gh`, secure XDG caching, stale
@@ -18,9 +20,14 @@ validation. It emits exactly Today, Week, Month, and Year in that order. A
 failed fetch either preserves the last successful totals as `stale` or emits
 `unavailable` without totals; failures never masquerade as four zeroes.
 
-Asynchronous QML consumption of the helper, the 15-minute and manual refresh
-paths, the profile action, installer/uninstaller, and changes to the live
-Omarchy setup remain later increments. Nothing in the current validation flow
+The controller launches that helper directly through Quickshell's asynchronous
+`Process` API, performs strict schema-v1 validation, retains the last complete
+four-period snapshot through unavailable or invalid results, refreshes every
+15 minutes, and provides one guarded manual refresh method. It exposes
+freshness, sanitized error categories, timestamps, retry metadata, visibility,
+and observable process-state counters for the next UI-wiring stage. The popup's
+live state presentation and actions, installer/uninstaller, and changes to the
+live Omarchy setup remain later work. Nothing in the current validation flow
 installs or enables the plugin, reads live plugin configuration, or edits
 `/usr/share/omarchy`.
 
@@ -31,8 +38,8 @@ installs or enables the plugin, reads live plugin configuration, or edits
 - GitHub CLI (`gh`) authenticated as the desired viewer for live data. The
   helper delegates authentication to `gh`; it never accepts, obtains, prints,
   or persists a token.
-- Qt 6 `qmlformat` for static QML checks. Quickshell and an active Wayland socket
-  are optional for the isolated runtime portion of the QML smoke test.
+- Qt 6 `qmlformat` and Quickshell for controller/runtime checks. An active
+  Wayland socket is optional for the isolated visual smoke portion.
 
 ## Build and validation
 
@@ -45,14 +52,17 @@ npm run validate
 That one command checks `gofmt`, `go vet`, all Go tests, Go race tests on
 supported Linux targets, a reproducible temporary helper build, deterministic
 fixture-mode JSON against the schema-v1 contract, the existing Node tests, and
-the isolated QML smoke workflow. It also rejects tracked cache/runtime artifacts
-and runs `git diff --check`. The Quickshell runtime portion reports an honest
-skip when no Wayland socket is available; its static checks still run.
+two isolated QML smoke workflows. The headless controller smoke always runs the
+compiled helper's deterministic `-fixture` path twice and asserts that no more
+than one process is active; the visual smoke reports an honest runtime skip when
+no Wayland socket is available. Validation also rejects tracked cache/runtime
+artifacts and runs `git diff --check`.
 
 `npm run build:helper` writes the reproducible helper binary to ignored
-`bin/commitpulse-data`. `npm run smoke` runs the fixture-backed isolated QML
-check, while `npm run demo` leaves that isolated preview open until closed.
-Neither command installs the plugin or touches live Omarchy configuration.
+`bin/commitpulse-data`. `npm run smoke:controller` runs the headless asynchronous
+controller check, `npm run smoke` runs the fixture-backed isolated visual check,
+and `npm run demo` leaves that isolated preview open until closed. None of these
+commands installs the plugin or touches live Omarchy configuration.
 
 `npm run smoke:live` is the opt-in, read-only authenticated smoke test. It
 preflights `gh`, builds into a temporary directory, uses a disposable
@@ -125,8 +135,8 @@ See your GitHub contribution counts at a glance while working in Omarchy.
 
 ## Planned later increments
 
-- Connect QML to the helper asynchronously with a 15-minute default refresh,
-  manual refresh, visible freshness/error state, and overlap prevention.
+- Bind the widget and popup to the shared controller, including manual refresh
+  controls and visible loading, freshness, timestamp, and error states.
 - Add the profile action and idempotent installer/uninstaller, then validate the
   installed plugin in the user's live Omarchy shell.
 

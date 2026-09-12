@@ -44,6 +44,7 @@ if [[ -e "$validation_root/cache" ]]; then
 fi
 node scripts/validate-helper-output.mjs --fixture "$validation_root/fixture.json"
 
+npm run smoke:controller
 npm run smoke
 
 tracked_runtime="$(git ls-files -- '.commitpulse/**' 'bin/**' 'dist/**' '**/commitpulse-data' '**/success-v1.json' '**/retry-v1.json' '**/cache.lock' '**/.commitpulse-*.tmp' '*.log')"

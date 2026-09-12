@@ -60,6 +60,8 @@ BarWidget {
             target.anchorItem = button;
         if ("hostWidget" in target)
             target.hostWidget = root;
+        if ("dataController" in target)
+            target.dataController = dataController;
     }
 
     readonly property real openPanelIndicatorWidth: vertical ? button.width : button.labelWidth
@@ -70,6 +72,12 @@ BarWidget {
 
     onBarChanged: injectPanel()
     onSettingsChanged: injectPanel()
+
+    // One controller belongs to the long-lived widget and is shared with its
+    // eager popup. The UI remains fixture-bound until the next planned stage.
+    DataController {
+        id: dataController
+    }
 
     Loader {
         id: panelLoader

@@ -15,6 +15,7 @@ Panel {
 
     property var anchorItem: null
     property var hostWidget: null
+    property var dataController: null
     readonly property var barIdentity: hostWidget || root
     readonly property var periods: Fixture.fixturePeriods()
     readonly property color contentForeground: bar ? bar.foreground : Color.popups.text

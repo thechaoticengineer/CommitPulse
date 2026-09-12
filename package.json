@@ -1,0 +1,12 @@
+{
+  "name": "commitpulse",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Fixture model checks for the CommitPulse Omarchy plugin.",
+  "scripts": {
+    "test": "node --test test/fixture-model.test.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

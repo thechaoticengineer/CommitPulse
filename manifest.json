@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "dev.commitpulse",
+  "name": "CommitPulse",
+  "version": "0.1.0",
+  "author": "Project contributors",
+  "license": "MIT",
+  "description": "Shows GitHub contribution totals in the Omarchy bar.",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "quickshell/BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "CommitPulse",
+    "description": "Shows contribution totals for today, this week, month, and year.",
+    "category": "Development",
+    "allowMultiple": false,
+    "defaultSection": "right"
+  }
+}

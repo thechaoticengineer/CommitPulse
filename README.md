@@ -6,22 +6,27 @@ See [PRODUCT.md](PRODUCT.md) for the accepted requirements and delivery order.
 
 ## Status
 
-Project initialized. This repository currently contains the project brief and
-license; the widget is not implemented yet. It will use the installed Omarchy
-shell plugin API with a QML bar widget and detail popup.
-The data helper will be written in Go and use the existing gh authentication.
+Increment 1 is implemented: the repository contains a schemaVersion 1
+Omarchy bar-widget manifest and a Qt-free, deterministic fixture model under
+`quickshell/`. The fictional fixture exposes Today, Week, Month, and Year
+contribution totals in that order. Run `npm test` to validate the manifest
+boundary, fixture shape, labels, totals, and stable summary formatting.
+
+The themed QML bar widget and detail popup are the next increment. GitHub
+access, the compiled Go helper, live refresh and cache behavior, and installer
+integration remain planned work. No personal contribution data, credentials,
+or runtime state is included in this repository.
 
 ## Goal
 
 See your GitHub contribution counts at a glance while working in Omarchy.
 
-## Planned first version
+## Planned later increments
 
-- Show contributions for today, the current week, month, and year.
-- Keep the widget compact and readable on the desktop.
-- Refresh automatically and display when the data was last updated.
-- Handle an unavailable connection without showing a misleading zero count.
-- Open your GitHub profile from the widget.
+- Build the compact themed QML widget and detail popup.
+- Fetch GitHub contributions through a compiled Go helper using `gh` auth.
+- Add asynchronous refresh, stale/offline handling, and XDG cache storage.
+- Provide a profile action plus an idempotent installer and uninstaller.
 
 ## Decisions for implementation
 

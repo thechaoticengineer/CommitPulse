@@ -168,7 +168,8 @@ run_lifecycle() {
 }
 
 assert_complete_install() {
-  local home="$1" destination="$home/.config/omarchy/plugins/dev.commitpulse"
+  local home="$1" destination
+  destination="$home/.config/omarchy/plugins/dev.commitpulse"
   assert_directory "$destination"
   assert_file "$destination/manifest.json"
   assert_file "$destination/LICENSE"
@@ -186,7 +187,10 @@ assert_complete_install() {
 }
 
 assert_helper_fixture() {
-  local home="$1" destination="$home/.config/omarchy/plugins/dev.commitpulse" output="$home/helper-fixture.json" fixture_cache="$home/fixture-only cache"
+  local home="$1" destination output fixture_cache
+  destination="$home/.config/omarchy/plugins/dev.commitpulse"
+  output="$home/helper-fixture.json"
+  fixture_cache="$home/fixture-only cache"
   env PATH=/nonexistent XDG_CACHE_HOME="$fixture_cache" \
     "$destination/bin/commitpulse-data" -fixture > "$output"
   [[ ! -e $fixture_cache ]] || fail "fixture mode created cache state"
@@ -194,7 +198,8 @@ assert_helper_fixture() {
 }
 
 assert_installed_layout() {
-  local shell_json="$1/.config/omarchy/shell.json"
+  local shell_json
+  shell_json="$1/.config/omarchy/shell.json"
   [[ $(commitpulse_entry_count "$shell_json") == 1 ]] ||
     fail "CommitPulse is duplicated or placed outside the requested section"
   jq -e --arg id dev.commitpulse '
@@ -203,7 +208,9 @@ assert_installed_layout() {
 }
 
 assert_uninstalled() {
-  local home="$1" destination="$home/.config/omarchy/plugins/dev.commitpulse" shell_json="$home/.config/omarchy/shell.json"
+  local home="$1" destination shell_json
+  destination="$home/.config/omarchy/plugins/dev.commitpulse"
+  shell_json="$home/.config/omarchy/shell.json"
   [[ ! -e $destination && ! -L $destination ]] || fail "plugin destination remains after uninstall"
   [[ $(commitpulse_entry_count "$shell_json") == 0 ]] || fail "CommitPulse layout remains after uninstall"
 }
@@ -237,7 +244,7 @@ create_test_stubs() {
 
   write_test_stub "$stub_dir/date" '#!/usr/bin/env bash' 'if [[ ${1:-} == "-u" && ${2:-} == "+%Y%m%dT%H%M%SZ" ]]; then printf "%s\n" "20960101T000000Z"; else exec "$COMMITPULSE_REAL_DATE" "$@"; fi'
   write_test_stub "$stub_dir/go" '#!/usr/bin/env bash' 'if [[ ${COMMITPULSE_TEST_FAIL:-} == build && ${1:-} == build ]]; then echo "fictional build failure" >&2; exit 77; fi' 'exec "$COMMITPULSE_REAL_GO" "$@"'
-  write_test_stub "$stub_dir/omarchy" '#!/usr/bin/env bash' 'set -Eeuo pipefail' 'fail() { printf "omarchy stub: %s\n" "$*" >&2; exit 1; }' 'home=${COMMITPULSE_TEST_ROOT:?}' 'shell_json="$home/.config/omarchy/shell.json"' 'destination="$home/.config/omarchy/plugins/dev.commitpulse"' 'id=dev.commitpulse' 'case "${1:-}:${2:-}:${3:-}" in' '  plugin:validate:*) [[ ${COMMITPULSE_TEST_FAIL:-} != validate ]] || fail "fictional validation failure"; shift 2; exec "$COMMITPULSE_REAL_VALIDATE" "$@" ;;' '  shell:shell:rescanPlugins) [[ ${COMMITPULSE_TEST_FAIL:-} != rescan ]] || fail "fictional rescan failure"; printf "ok\n" ;;' '  shell:shell:listPlugins)' '    if [[ -d $destination && ! -L $destination ]]; then' "      jq -cn --arg id \"\$id\" '[{id: \$id, kinds: [\"bar-widget\"], enabled: true}]'" '    else printf "[]\n"; fi ;;' '  plugin:enable:dev.commitpulse)' '    [[ ${4:-} == --section && ${5:-} == right && $# == 5 ]] || fail "unexpected enable arguments"' '    [[ ${COMMITPULSE_TEST_FAIL:-} != enable ]] || fail "fictional enable failure"' '    jq --arg id "$id" -f "$COMMITPULSE_STUB_ENABLE_FILTER" "$shell_json" > "$shell_json.stub"' '    mv "$shell_json.stub" "$shell_json"' '    printf "Enabled %s\n" "$id" ;;' '  plugin:disable:dev.commitpulse)' '    [[ $# == 3 ]] || fail "unexpected disable arguments"' '    jq --arg id "$id" -f "$COMMITPULSE_STUB_DISABLE_FILTER" "$shell_json" > "$shell_json.stub"' '    mv "$shell_json.stub" "$shell_json"' '    printf "Disabled %s\n" "$id" ;;' '  *) fail "unexpected exact Omarchy API: $*" ;;' 'esac'
+  write_test_stub "$stub_dir/omarchy" '#!/usr/bin/env bash' 'set -Eeuo pipefail' 'fail() { printf "omarchy stub: %s\n" "$*" >&2; exit 1; }' 'home=${COMMITPULSE_TEST_ROOT:?}' 'shell_json="$home/.config/omarchy/shell.json"' 'destination="$home/.config/omarchy/plugins/dev.commitpulse"' 'id=dev.commitpulse' 'case "${1:-}:${2:-}:${3:-}" in' '  plugin:validate:*) [[ ${COMMITPULSE_TEST_FAIL:-} != validate ]] || fail "fictional validation failure"; shift 2; exec "$COMMITPULSE_REAL_VALIDATE" "$@" ;;' '  shell:shell:rescanPlugins)' '    [[ ${COMMITPULSE_TEST_FAIL:-} != rescan ]] || fail "fictional rescan failure"' '    if [[ ${COMMITPULSE_TEST_FAIL:-} == rescan-once && ! -e $home/.rescan-failed-once ]]; then : > "$home/.rescan-failed-once"; fail "omarchy-shell is not responding"; fi' '    printf "ok\n" ;;' '  shell:shell:listPlugins)' '    if [[ ${COMMITPULSE_TEST_FAIL:-} == list-once && ! -e $home/.list-failed-once ]]; then : > "$home/.list-failed-once"; fail "omarchy-shell is not responding"; fi' '    if [[ -d $destination && ! -L $destination ]]; then' "      jq -cn --arg id \"\$id\" '[{id: \$id, kinds: [\"bar-widget\"], enabled: true}]'" '    else printf "[]\n"; fi ;;' '  plugin:enable:dev.commitpulse)' '    [[ ${4:-} == --section && ${5:-} == right && $# == 5 ]] || fail "unexpected enable arguments"' '    [[ ${COMMITPULSE_TEST_FAIL:-} != enable ]] || fail "fictional enable failure"' '    if [[ ${COMMITPULSE_TEST_FAIL:-} == enable-once && ! -e $home/.enable-failed-once ]]; then : > "$home/.enable-failed-once"; fail "omarchy-shell is not responding"; fi' '    jq --arg id "$id" -f "$COMMITPULSE_STUB_ENABLE_FILTER" "$shell_json" > "$shell_json.stub"' '    mv "$shell_json.stub" "$shell_json"' '    printf "Enabled %s\n" "$id" ;;' '  plugin:disable:dev.commitpulse)' '    [[ $# == 3 ]] || fail "unexpected disable arguments"' '    jq --arg id "$id" -f "$COMMITPULSE_STUB_DISABLE_FILTER" "$shell_json" > "$shell_json.stub"' '    mv "$shell_json.stub" "$shell_json"' '    printf "Disabled %s\n" "$id" ;;' '  *) fail "unexpected exact Omarchy API: $*" ;;' 'esac'
 
   export COMMITPULSE_STUB_LIST_FILTER="$filter_dir/list-enabled.jq"
   export COMMITPULSE_STUB_ENABLE_FILTER="$filter_dir/enable.jq"
@@ -334,6 +341,20 @@ for activation_failure in rescan enable; do
   diff -r --no-dereference "$rollback_home/original-tree" "$rollback_destination" >/dev/null ||
     fail "$activation_failure rollback did not restore plugin tree"
   assert_no_transfer_stages "$rollback_home/.config/omarchy/plugins"
+done
+
+# Omarchy automatically reloads when the installed tree changes, so the shell
+# IPC can briefly be unavailable while the explicit rescan/enable transaction
+# runs. Both calls tolerate one transient outage and still converge.
+for transient_failure in rescan-once enable-once list-once; do
+  transient_home="$(new_case "transient-$transient_failure")"
+  transient_shell="$transient_home/.config/omarchy/shell.json"
+  transient_baseline="$transient_home/unrelated-baseline.json"
+  scrub_owned_state "$transient_shell" > "$transient_baseline"
+  run_lifecycle "$transient_home" install "$transient_failure"
+  assert_complete_install "$transient_home"
+  assert_installed_layout "$transient_home"
+  assert_unrelated_state "$transient_baseline" "$transient_shell"
 done
 
 # A symlinked target is rejected without following or replacing it.

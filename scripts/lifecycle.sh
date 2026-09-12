@@ -283,8 +283,25 @@ commitpulse_assert_unrelated_state_preserved() {
   rm -f -- "$current"
 }
 
-commitpulse_plugin_list() {
+commitpulse_plugin_list_once() {
   commitpulse_run_omarchy shell shell listPlugins
+}
+
+commitpulse_plugin_list() {
+  local attempt output
+  for attempt in {1..100}; do
+    if output="$(commitpulse_plugin_list_once 2>&1)"; then
+      printf '%s\n' "$output"
+      return 0
+    fi
+    [[ $output == *"not responding"* || $output == *"not running"* || $output == *"not ready"* ]] || {
+      printf '%s\n' "$output" >&2
+      return 1
+    }
+    sleep 0.1
+  done
+  printf '%s\n' "$output" >&2
+  return 1
 }
 
 commitpulse_shell_has_owned_state() {
@@ -302,13 +319,25 @@ commitpulse_shell_has_owned_state() {
 }
 
 commitpulse_rescan() {
-  commitpulse_run_omarchy shell shell rescanPlugins >/dev/null
+  local attempt output
+  for attempt in {1..100}; do
+    if output="$(commitpulse_run_omarchy shell shell rescanPlugins 2>&1)"; then
+      return 0
+    fi
+    [[ $output == *"not responding"* || $output == *"not running"* || $output == *"not ready"* ]] || {
+      printf '%s\n' "$output" >&2
+      return 1
+    }
+    sleep 0.1
+  done
+  printf '%s\n' "$output" >&2
+  return 1
 }
 
 commitpulse_wait_for_catalog_state() {
   local expected="$1" attempt plugins match
   for attempt in {1..100}; do
-    if plugins="$(commitpulse_plugin_list 2>/dev/null)" &&
+    if plugins="$(commitpulse_plugin_list_once 2>/dev/null)" &&
       jq -e 'type == "array"' <<< "$plugins" >/dev/null 2>&1; then
       match="$(jq -r --arg id "$COMMITPULSE_PLUGIN_ID" '
         any(.[]; .id == $id)
@@ -326,7 +355,8 @@ commitpulse_enable() {
     if output="$(commitpulse_run_omarchy plugin enable "$COMMITPULSE_PLUGIN_ID" --section "$COMMITPULSE_SECTION" 2>&1)"; then
       return 0
     fi
-    [[ $output == *"not known"* || $output == *"not ready"* ]] || {
+    [[ $output == *"not known"* || $output == *"not ready"* ||
+      $output == *"not responding"* || $output == *"not running"* ]] || {
       printf '%s\n' "$output" >&2
       return 1
     }

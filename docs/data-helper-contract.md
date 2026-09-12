@@ -5,9 +5,8 @@ contribution data to the QML layer. It now fetches the authenticated viewer's
 calendar through the installed GitHub CLI, validates and aggregates the
 response, and writes the stable JSON contract below. Cache storage, stale
 fallback, deterministic validation, the bounded live smoke, asynchronous QML
-controller consumption, and the live widget/popup presentation are implemented
-through increment 3. Installer/uninstaller behavior, final installed-helper
-discovery, and live Omarchy enablement remain increment 4 work.
+controller consumption, the live widget/popup presentation, and the validated
+user-local installation lifecycle are implemented.
 
 The helper invokes exactly one read-only `gh api graphql` request when the first
 attempt succeeds. It relies on `gh`'s existing authentication, never accepts or
@@ -31,9 +30,10 @@ subprocess, network request, or cache access.
 `../bin/commitpulse-data` relative to its own QML directory. It supplies that
 absolute path to one asynchronous Quickshell `Process` command array; it never
 uses a shell or silently searches `PATH`. `npm run build:helper` produces the
-matching ignored repository build. Isolated smokes can select a deterministic
-executable with `COMMITPULSE_TEST_HELPER`; that override is test-only. Increment
-4 will establish and validate the final installed location alongside the plugin.
+matching ignored repository build. `./install.sh` compiles that same path as
+`bin/commitpulse-data` inside the user-local plugin tree. Isolated smokes can
+select a deterministic executable with `COMMITPULSE_TEST_HELPER`; that override
+is test-only.
 
 One deferred fetch runs at controller startup. A repeating 900000 ms (15-minute)
 timer and the popup's manual Refresh action use that same controller. A
